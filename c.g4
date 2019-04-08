@@ -1,9 +1,5 @@
 grammar c;
 
-program:
-	(statement | declaration | external_declaration)*
-;
-
 primary_expression:
 	IDENTIFIER
 |	CONSTANT
@@ -21,18 +17,16 @@ postfix_expression:
 |	postfix_expression '--'
 ;
 
+argument_expression_list:
+	assignment_expression
+|	argument_expression_list ',' assignment_expression
+;
+
 unary_expression:
 	postfix_expression
 |	'++' unary_expression
 |	'--' unary_expression
-|	unary_operator cast_expression
-;
-
-unary_operator:
-	'*'
-|	'+'
-|	'-'
-|	'!'
+|	('*' | '+' | '-' | '!') cast_expression
 ;
 
 cast_expression:
@@ -90,12 +84,7 @@ conditional_expression:
 
 assignment_expression:
 	conditional_expression
-|	unary_expression ASSIGNMENT_OPERATOR assignment_expression
-;
-
-argument_expression_list:
-	assignment_expression
-|	argument_expression_list ',' assignment_expression
+|	unary_expression ('=' | '*=' | '/=' | '%=' | '+=' | '-=') assignment_expression
 ;
 
 expression:
@@ -147,11 +136,11 @@ direct_declarator:
 |	direct_declarator '[' assignment_expression? ']'
 |	direct_declarator '[' '*' ']'
 |	direct_declarator '(' parameter_type_list ')'
-|	direct_declarator '(' identifier_list? ')'
+|	direct_declarator '(' identifier_list? ')' // What is this?
 ;
 
 pointer:
-	'*' pointer
+	'*' pointer?
 ;
 
 parameter_type_list:
@@ -255,6 +244,11 @@ jump_statement:
 |	KEYWORD_RETURN expression? ';'
 ;
 
+translation_unit:
+    external_declaration
+|   translation_unit external_declaration
+;
+
 external_declaration:
 	function_definition
 |	declaration
@@ -269,17 +263,16 @@ declaration_list:
 |	declaration_list declaration
 ;
 
+compilation_unit:
+	translation_unit? EOF
+;
 
 fragment NONDIGIT: [_a-zA-Z];
 fragment DIGIT: [0-9];
 fragment NONZERODIGIT: [1-9];
 fragment SIGN: '+' | '-';
 fragment EXPONENT_PART: ('e'|'E') SIGN? DIGIT+;
-fragment CONSTANT_INTEGER: SIGN? DIGIT+;
-fragment CONSTANT_FLOAT:
-	DIGIT* '.' DIGIT+ EXPONENT_PART?
-|	DIGIT+ '.' EXPONENT_PART?;
-fragment CONSTANT_CHARACTER: '\'' C_CHAR '\'';
+
 fragment ESCAPE_SEQUENCE:
 	'\\\'' | '\\"' | '\\?' | '\\\\' | '\\a' | '\\b' | '\\f' | '\\n' | '\\r' | '\\t' | '\\v'
 ;
@@ -291,11 +284,19 @@ fragment S_CHAR:
 	~('"' | '\n' | '\\')
 |	ESCAPE_SEQUENCE
 ;
+fragment CONSTANT_INTEGER: SIGN? DIGIT+;
+fragment CONSTANT_FLOAT:
+	DIGIT* '.' DIGIT+ EXPONENT_PART?
+|	DIGIT+ '.' EXPONENT_PART?;
+fragment CONSTANT_CHARACTER: '\'' C_CHAR '\'';
 
-ASSIGNMENT_OPERATOR: '=' | '*=' | '/=' | '%=' | '+=' | '-=';
-
-IDENTIFIER:
-	NONDIGIT (NONDIGIT | DIGIT)*
+ASSIGNMENT_OPERATOR:
+    '='
+|   '*='
+|   '/='
+|   '%='
+|   '+='
+|   '-='
 ;
 
 CONSTANT:
@@ -325,6 +326,10 @@ KEYWORD_STRUCT: 'struct';
 KEYWORD_SWITCH: 'switch';
 KEYWORD_VOID: 'void';
 KEYWORD_WHILE: 'while';
+
+IDENTIFIER:
+	NONDIGIT (NONDIGIT | DIGIT)*
+;
 
 WS: [ \n\r\t] -> skip;
 EOS: ';' ;
