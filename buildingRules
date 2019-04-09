@@ -1,4 +1,4 @@
-
+# Base
 - type_specifier
 - primary_expression
 - direct_declarator
@@ -9,3 +9,12 @@
 - selection_statement
 - iteration_statement
 - jump_statements
+
+# Compound
+- compound statement
+- unary_expression
+- cast_expression
+- binary_expression (mult, add, relational, logical, assignmen (ptr!))
+- conditional (translate to IF-ELSE)
+- declaration 
+- direct_declarator 
