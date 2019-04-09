@@ -1,0 +1,11 @@
+
+- type_specifier
+- primary_expression
+- direct_declarator
+- pointer
+- identifier_list
+- designator (?)
+- labeled_statement
+- selection_statement
+- iteration_statement
+- jump_statements
