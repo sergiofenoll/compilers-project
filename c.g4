@@ -1,5 +1,9 @@
 grammar c;
 
+compilation_unit:
+	(function_definition | declaration)+? EOF
+;
+
 primary_expression:
 	IDENTIFIER
 |	CONSTANT
@@ -13,8 +17,6 @@ postfix_expression:
 |	postfix_expression '(' argument_expression_list? ')'
 |	postfix_expression '.' IDENTIFIER
 |	postfix_expression '->' IDENTIFIER
-|	postfix_expression '++'
-|	postfix_expression '--'
 ;
 
 argument_expression_list:
@@ -24,6 +26,8 @@ argument_expression_list:
 
 unary_expression:
 	postfix_expression
+|	unary_expression '++'
+|	unary_expression '--'
 |	'++' unary_expression
 |	'--' unary_expression
 |	('*' | '+' | '-' | '!') cast_expression
@@ -47,39 +51,25 @@ additive_expression:
 |	additive_expression '-' multiplicative_expression
 ;
 
-// Not required by project spec, ommitted
-shift_expression:
-	additive_expression
-;
-
 relational_expression:
-	shift_expression
-|	relational_expression '<' shift_expression
-|	relational_expression '>' shift_expression
-|	relational_expression '<=' shift_expression
-|	relational_expression '>=' shift_expression
+	additive_expression
+|	relational_expression '<' additive_expression
+|	relational_expression '>' additive_expression
+|	relational_expression '<=' additive_expression
+|	relational_expression '>=' additive_expression
+|	relational_expression '==' additive_expression
+|	relational_expression '!=' additive_expression
 ;
 
-equality_expression:
+logical_expression:
 	relational_expression
-|	equality_expression '==' relational_expression
-|	equality_expression '!=' relational_expression
+|	logical_expression '&&' relational_expression
+|	logical_expression '||' relational_expression
 ;
 
-logical_AND_expression:
-	equality_expression
-|	logical_AND_expression '&&' equality_expression
-;
-
-logical_OR_expression:
-	logical_AND_expression
-|	logical_OR_expression '||' logical_AND_expression
-;
-
-// Ommitted (for now)
 conditional_expression:
-	logical_OR_expression
-|	logical_OR_expression '?' expression ':' conditional_expression
+	logical_expression
+|	logical_expression '?' expression ':' conditional_expression
 ;
 
 assignment_expression:
@@ -134,9 +124,8 @@ direct_declarator:
 	IDENTIFIER
 |	'(' declarator ')'
 |	direct_declarator '[' assignment_expression? ']'
-|	direct_declarator '[' '*' ']'
-|	direct_declarator '(' parameter_type_list ')'
-|	direct_declarator '(' identifier_list? ')' // What is this?
+|	direct_declarator '(' parameter_type_list? ')'
+// |	direct_declarator '(' identifier_list? ')' // What is this?
 ;
 
 pointer:
@@ -174,22 +163,8 @@ initializer:
 ;
 
 initializer_list:
-	designation? initializer
-|	initializer_list ',' designation? initializer
-;
-
-designation:
-	designator_list '='
-;
-
-designator_list:
-	designator
-|	designator_list designator
-;
-
-designator:
-	'[' constant_expression ']'
-|	'.' IDENTIFIER
+	initializer
+|	initializer_list ',' initializer
 ;
 
 statement:
@@ -244,16 +219,6 @@ jump_statement:
 |	KEYWORD_RETURN expression? ';'
 ;
 
-translation_unit:
-    external_declaration
-|   translation_unit external_declaration
-;
-
-external_declaration:
-	function_definition
-|	declaration
-;
-
 function_definition:
 	declaration_specifiers declarator declaration_list? compound_statement
 ;
@@ -261,10 +226,6 @@ function_definition:
 declaration_list:
 	declaration
 |	declaration_list declaration
-;
-
-compilation_unit:
-	translation_unit? EOF
 ;
 
 fragment NONDIGIT: [_a-zA-Z];
