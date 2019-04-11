@@ -10,10 +10,6 @@ def main(argv):
     stream = CommonTokenStream(lexer)
     parser = cParser(stream)
     tree = parser.program()
- 
-    
-    c = cListener()
-    walker = ParseTreeWalker()
-    walker.walk(c, tree) 
+
 if __name__ == '__main__':
     main(sys.argv)

@@ -12,3 +12,13 @@ cmake_install.cmake
 install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
+build.sh
+
+# Antlr files
+C.interp
+C.tokens
+CLexer.interp
+CLexer.tokens
+CLexer.py
+CListener.py
+CParser.py
