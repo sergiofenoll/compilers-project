@@ -1,15 +1,15 @@
 import sys
 from antlr4 import *
-from cLexer import cLexer
-from cParser import cParser
-from cListener import cListener
+from parser.CLexer import CLexer
+from parser.CParser import CParser
+from parser.CListener import CListener
 
 def main(argv):
     input = FileStream(argv[1])
-    lexer = cLexer(input)
+    lexer = CLexer(input)
     stream = CommonTokenStream(lexer)
-    parser = cParser(stream)
-    tree = parser.program()
+    parser = CParser(stream)
+    tree = parser.compilationUnit()
 
 if __name__ == '__main__':
     main(sys.argv)

@@ -20,6 +20,3 @@ C.interp
 C.tokens
 CLexer.interp
 CLexer.tokens
-CLexer.py
-CListener.py
-CParser.py
