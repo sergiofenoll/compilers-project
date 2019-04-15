@@ -17,12 +17,39 @@ class CListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CParser#primaryExpression.
-    def enterPrimaryExpression(self, ctx:CParser.PrimaryExpressionContext):
+    # Enter a parse tree produced by CParser#identifier.
+    def enterIdentifier(self, ctx:CParser.IdentifierContext):
         pass
 
-    # Exit a parse tree produced by CParser#primaryExpression.
-    def exitPrimaryExpression(self, ctx:CParser.PrimaryExpressionContext):
+    # Exit a parse tree produced by CParser#identifier.
+    def exitIdentifier(self, ctx:CParser.IdentifierContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#constant.
+    def enterConstant(self, ctx:CParser.ConstantContext):
+        pass
+
+    # Exit a parse tree produced by CParser#constant.
+    def exitConstant(self, ctx:CParser.ConstantContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#stringLiteral.
+    def enterStringLiteral(self, ctx:CParser.StringLiteralContext):
+        pass
+
+    # Exit a parse tree produced by CParser#stringLiteral.
+    def exitStringLiteral(self, ctx:CParser.StringLiteralContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#parenExpression.
+    def enterParenExpression(self, ctx:CParser.ParenExpressionContext):
+        pass
+
+    # Exit a parse tree produced by CParser#parenExpression.
+    def exitParenExpression(self, ctx:CParser.ParenExpressionContext):
         pass
 
 
@@ -44,93 +71,291 @@ class CListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CParser#unaryExpression.
-    def enterUnaryExpression(self, ctx:CParser.UnaryExpressionContext):
+    # Enter a parse tree produced by CParser#postfixDecrement.
+    def enterPostfixDecrement(self, ctx:CParser.PostfixDecrementContext):
         pass
 
-    # Exit a parse tree produced by CParser#unaryExpression.
-    def exitUnaryExpression(self, ctx:CParser.UnaryExpressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CParser#castExpression.
-    def enterCastExpression(self, ctx:CParser.CastExpressionContext):
-        pass
-
-    # Exit a parse tree produced by CParser#castExpression.
-    def exitCastExpression(self, ctx:CParser.CastExpressionContext):
+    # Exit a parse tree produced by CParser#postfixDecrement.
+    def exitPostfixDecrement(self, ctx:CParser.PostfixDecrementContext):
         pass
 
 
-    # Enter a parse tree produced by CParser#multiplicativeExpression.
-    def enterMultiplicativeExpression(self, ctx:CParser.MultiplicativeExpressionContext):
+    # Enter a parse tree produced by CParser#prefixIncrement.
+    def enterPrefixIncrement(self, ctx:CParser.PrefixIncrementContext):
         pass
 
-    # Exit a parse tree produced by CParser#multiplicativeExpression.
-    def exitMultiplicativeExpression(self, ctx:CParser.MultiplicativeExpressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CParser#additiveExpression.
-    def enterAdditiveExpression(self, ctx:CParser.AdditiveExpressionContext):
-        pass
-
-    # Exit a parse tree produced by CParser#additiveExpression.
-    def exitAdditiveExpression(self, ctx:CParser.AdditiveExpressionContext):
+    # Exit a parse tree produced by CParser#prefixIncrement.
+    def exitPrefixIncrement(self, ctx:CParser.PrefixIncrementContext):
         pass
 
 
-    # Enter a parse tree produced by CParser#relationalExpression.
-    def enterRelationalExpression(self, ctx:CParser.RelationalExpressionContext):
+    # Enter a parse tree produced by CParser#unaryPassthrough.
+    def enterUnaryPassthrough(self, ctx:CParser.UnaryPassthroughContext):
         pass
 
-    # Exit a parse tree produced by CParser#relationalExpression.
-    def exitRelationalExpression(self, ctx:CParser.RelationalExpressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CParser#equalityExpression.
-    def enterEqualityExpression(self, ctx:CParser.EqualityExpressionContext):
-        pass
-
-    # Exit a parse tree produced by CParser#equalityExpression.
-    def exitEqualityExpression(self, ctx:CParser.EqualityExpressionContext):
+    # Exit a parse tree produced by CParser#unaryPassthrough.
+    def exitUnaryPassthrough(self, ctx:CParser.UnaryPassthroughContext):
         pass
 
 
-    # Enter a parse tree produced by CParser#logicalExpression.
-    def enterLogicalExpression(self, ctx:CParser.LogicalExpressionContext):
+    # Enter a parse tree produced by CParser#postfixIncrement.
+    def enterPostfixIncrement(self, ctx:CParser.PostfixIncrementContext):
         pass
 
-    # Exit a parse tree produced by CParser#logicalExpression.
-    def exitLogicalExpression(self, ctx:CParser.LogicalExpressionContext):
-        pass
-
-
-    # Enter a parse tree produced by CParser#conditionalExpression.
-    def enterConditionalExpression(self, ctx:CParser.ConditionalExpressionContext):
-        pass
-
-    # Exit a parse tree produced by CParser#conditionalExpression.
-    def exitConditionalExpression(self, ctx:CParser.ConditionalExpressionContext):
+    # Exit a parse tree produced by CParser#postfixIncrement.
+    def exitPostfixIncrement(self, ctx:CParser.PostfixIncrementContext):
         pass
 
 
-    # Enter a parse tree produced by CParser#assignmentExpression.
-    def enterAssignmentExpression(self, ctx:CParser.AssignmentExpressionContext):
+    # Enter a parse tree produced by CParser#unary.
+    def enterUnary(self, ctx:CParser.UnaryContext):
         pass
 
-    # Exit a parse tree produced by CParser#assignmentExpression.
-    def exitAssignmentExpression(self, ctx:CParser.AssignmentExpressionContext):
+    # Exit a parse tree produced by CParser#unary.
+    def exitUnary(self, ctx:CParser.UnaryContext):
         pass
 
 
-    # Enter a parse tree produced by CParser#expression.
-    def enterExpression(self, ctx:CParser.ExpressionContext):
+    # Enter a parse tree produced by CParser#prefixDecrement.
+    def enterPrefixDecrement(self, ctx:CParser.PrefixDecrementContext):
         pass
 
-    # Exit a parse tree produced by CParser#expression.
-    def exitExpression(self, ctx:CParser.ExpressionContext):
+    # Exit a parse tree produced by CParser#prefixDecrement.
+    def exitPrefixDecrement(self, ctx:CParser.PrefixDecrementContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#castPassthrough.
+    def enterCastPassthrough(self, ctx:CParser.CastPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#castPassthrough.
+    def exitCastPassthrough(self, ctx:CParser.CastPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#cast.
+    def enterCast(self, ctx:CParser.CastContext):
+        pass
+
+    # Exit a parse tree produced by CParser#cast.
+    def exitCast(self, ctx:CParser.CastContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#division.
+    def enterDivision(self, ctx:CParser.DivisionContext):
+        pass
+
+    # Exit a parse tree produced by CParser#division.
+    def exitDivision(self, ctx:CParser.DivisionContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#multiplicativePassthrough.
+    def enterMultiplicativePassthrough(self, ctx:CParser.MultiplicativePassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#multiplicativePassthrough.
+    def exitMultiplicativePassthrough(self, ctx:CParser.MultiplicativePassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#multiplication.
+    def enterMultiplication(self, ctx:CParser.MultiplicationContext):
+        pass
+
+    # Exit a parse tree produced by CParser#multiplication.
+    def exitMultiplication(self, ctx:CParser.MultiplicationContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#modulo.
+    def enterModulo(self, ctx:CParser.ModuloContext):
+        pass
+
+    # Exit a parse tree produced by CParser#modulo.
+    def exitModulo(self, ctx:CParser.ModuloContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#additivePassthrough.
+    def enterAdditivePassthrough(self, ctx:CParser.AdditivePassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#additivePassthrough.
+    def exitAdditivePassthrough(self, ctx:CParser.AdditivePassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#subtraction.
+    def enterSubtraction(self, ctx:CParser.SubtractionContext):
+        pass
+
+    # Exit a parse tree produced by CParser#subtraction.
+    def exitSubtraction(self, ctx:CParser.SubtractionContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#addition.
+    def enterAddition(self, ctx:CParser.AdditionContext):
+        pass
+
+    # Exit a parse tree produced by CParser#addition.
+    def exitAddition(self, ctx:CParser.AdditionContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#largerThan.
+    def enterLargerThan(self, ctx:CParser.LargerThanContext):
+        pass
+
+    # Exit a parse tree produced by CParser#largerThan.
+    def exitLargerThan(self, ctx:CParser.LargerThanContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#smallerThan.
+    def enterSmallerThan(self, ctx:CParser.SmallerThanContext):
+        pass
+
+    # Exit a parse tree produced by CParser#smallerThan.
+    def exitSmallerThan(self, ctx:CParser.SmallerThanContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#relationalPassthrough.
+    def enterRelationalPassthrough(self, ctx:CParser.RelationalPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#relationalPassthrough.
+    def exitRelationalPassthrough(self, ctx:CParser.RelationalPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#smallerThanOrEqual.
+    def enterSmallerThanOrEqual(self, ctx:CParser.SmallerThanOrEqualContext):
+        pass
+
+    # Exit a parse tree produced by CParser#smallerThanOrEqual.
+    def exitSmallerThanOrEqual(self, ctx:CParser.SmallerThanOrEqualContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#largerThanOrEqual.
+    def enterLargerThanOrEqual(self, ctx:CParser.LargerThanOrEqualContext):
+        pass
+
+    # Exit a parse tree produced by CParser#largerThanOrEqual.
+    def exitLargerThanOrEqual(self, ctx:CParser.LargerThanOrEqualContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#equalityPassthrough.
+    def enterEqualityPassthrough(self, ctx:CParser.EqualityPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#equalityPassthrough.
+    def exitEqualityPassthrough(self, ctx:CParser.EqualityPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#equals.
+    def enterEquals(self, ctx:CParser.EqualsContext):
+        pass
+
+    # Exit a parse tree produced by CParser#equals.
+    def exitEquals(self, ctx:CParser.EqualsContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#notEquals.
+    def enterNotEquals(self, ctx:CParser.NotEqualsContext):
+        pass
+
+    # Exit a parse tree produced by CParser#notEquals.
+    def exitNotEquals(self, ctx:CParser.NotEqualsContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#logicalPassthrough.
+    def enterLogicalPassthrough(self, ctx:CParser.LogicalPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#logicalPassthrough.
+    def exitLogicalPassthrough(self, ctx:CParser.LogicalPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#logicalAnd.
+    def enterLogicalAnd(self, ctx:CParser.LogicalAndContext):
+        pass
+
+    # Exit a parse tree produced by CParser#logicalAnd.
+    def exitLogicalAnd(self, ctx:CParser.LogicalAndContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#logicalOr.
+    def enterLogicalOr(self, ctx:CParser.LogicalOrContext):
+        pass
+
+    # Exit a parse tree produced by CParser#logicalOr.
+    def exitLogicalOr(self, ctx:CParser.LogicalOrContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#conditionalPassthrough.
+    def enterConditionalPassthrough(self, ctx:CParser.ConditionalPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#conditionalPassthrough.
+    def exitConditionalPassthrough(self, ctx:CParser.ConditionalPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#conditional.
+    def enterConditional(self, ctx:CParser.ConditionalContext):
+        pass
+
+    # Exit a parse tree produced by CParser#conditional.
+    def exitConditional(self, ctx:CParser.ConditionalContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#assignmentPassthrough.
+    def enterAssignmentPassthrough(self, ctx:CParser.AssignmentPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#assignmentPassthrough.
+    def exitAssignmentPassthrough(self, ctx:CParser.AssignmentPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#assignment.
+    def enterAssignment(self, ctx:CParser.AssignmentContext):
+        pass
+
+    # Exit a parse tree produced by CParser#assignment.
+    def exitAssignment(self, ctx:CParser.AssignmentContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#expressionList.
+    def enterExpressionList(self, ctx:CParser.ExpressionListContext):
+        pass
+
+    # Exit a parse tree produced by CParser#expressionList.
+    def exitExpressionList(self, ctx:CParser.ExpressionListContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#expressionPassthrough.
+    def enterExpressionPassthrough(self, ctx:CParser.ExpressionPassthroughContext):
+        pass
+
+    # Exit a parse tree produced by CParser#expressionPassthrough.
+    def exitExpressionPassthrough(self, ctx:CParser.ExpressionPassthroughContext):
         pass
 
 
@@ -248,15 +473,6 @@ class CListener(ParseTreeListener):
 
     # Exit a parse tree produced by CParser#parameterDeclaration.
     def exitParameterDeclaration(self, ctx:CParser.ParameterDeclarationContext):
-        pass
-
-
-    # Enter a parse tree produced by CParser#identifierList.
-    def enterIdentifierList(self, ctx:CParser.IdentifierListContext):
-        pass
-
-    # Exit a parse tree produced by CParser#identifierList.
-    def exitIdentifierList(self, ctx:CParser.IdentifierListContext):
         pass
 
 

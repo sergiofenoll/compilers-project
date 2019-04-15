@@ -2,9 +2,9 @@ import parser.CParser as CParser
 import AST
 
 
-def makeASTNode(ctx):
+def makeASTNode(parseTree):
 
     # Returns the appropriate ASTNode for a given context
 
-    idx = ctx.getRuleIndex()
+    idx = parseTree.getRuleIndex()
     rule = CParser.ruleNames[idx]

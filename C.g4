@@ -5,10 +5,10 @@ compilationUnit:
 ;
 
 primaryExpression:
-	Identifier
-|	Constant
-|	StringLiteral
-|	'(' expression ')'
+	Identifier #identifier
+|	Constant #constant
+|	StringLiteral #stringLiteral
+|	'(' expression ')' #parenExpression
 ;
 
 postfixExpression:
@@ -25,65 +25,65 @@ argumentExpressionList:
 ;
 
 unaryExpression:
-	postfixExpression
-|	unaryExpression '++'
-|	unaryExpression '--'
-|	'++' unaryExpression
-|	'--' unaryExpression
-|	('*' | '+' | '-' | '!') castExpression
+	postfixExpression #unaryPassthrough
+|	unaryExpression '++' #postfixIncrement
+|	unaryExpression '--' #postfixDecrement
+|	'++' unaryExpression #prefixIncrement
+|	'--' unaryExpression #prefixDecrement
+|	('*' | '+' | '-' | '!') castExpression #unary
 ;
 
 castExpression:
-	unaryExpression
-|	'(' typeName ')' castExpression
+	unaryExpression #castPassthrough
+|	'(' typeName ')' castExpression #cast
 ;
 
 multiplicativeExpression:
-	castExpression
-|	multiplicativeExpression '*' castExpression
-|	multiplicativeExpression '/' castExpression
-|	multiplicativeExpression '%' castExpression
+	castExpression #multiplicativePassthrough
+|	multiplicativeExpression '*' castExpression #multiplication
+|	multiplicativeExpression '/' castExpression #division
+|	multiplicativeExpression '%' castExpression #modulo
 ;
 
 additiveExpression:
-	multiplicativeExpression
-|	additiveExpression '+' multiplicativeExpression
-|	additiveExpression '-' multiplicativeExpression
+	multiplicativeExpression #additivePassthrough
+|	additiveExpression '+' multiplicativeExpression #addition
+|	additiveExpression '-' multiplicativeExpression #subtraction
 ;
 
 relationalExpression:
-	additiveExpression
-|	relationalExpression '<' additiveExpression
-|	relationalExpression '>' additiveExpression
-|	relationalExpression '<=' additiveExpression
-|	relationalExpression '>=' additiveExpression
+	additiveExpression #relationalPassthrough
+|	relationalExpression '<' additiveExpression #smallerThan
+|	relationalExpression '>' additiveExpression #largerThan
+|	relationalExpression '<=' additiveExpression #smallerThanOrEqual
+|	relationalExpression '>=' additiveExpression #largerThanOrEqual
 ;
 
 equalityExpression:
-    relationalExpression
-|	relationalExpression '==' additiveExpression
-|	relationalExpression '!=' additiveExpression
+    relationalExpression #equalityPassthrough
+|	relationalExpression '==' additiveExpression #equals
+|	relationalExpression '!=' additiveExpression #notEquals
 ;
 
 logicalExpression:
-	equalityExpression
-|	logicalExpression '&&' relationalExpression
-|	logicalExpression '||' relationalExpression
+	equalityExpression #logicalPassthrough
+|	logicalExpression '&&' relationalExpression #logicalAnd
+|	logicalExpression '||' relationalExpression #logicalOr
 ;
 
 conditionalExpression:
-	logicalExpression
-|	logicalExpression '?' expression ':' conditionalExpression
+	logicalExpression #conditionalPassthrough
+|	logicalExpression '?' expression ':' conditionalExpression #conditional
 ;
 
 assignmentExpression:
-	conditionalExpression
-|	unaryExpression ('=' | '*=' | '/=' | '%=' | '+=' | '-=') assignmentExpression
+	conditionalExpression #assignmentPassthrough
+|	unaryExpression ('=' | '*=' | '/=' | '%=' | '+=' | '-=') assignmentExpression #assignment
 ;
 
 expression:
-	assignmentExpression
-|	expression ',' assignmentExpression
+	assignmentExpression #expressionPassthrough
+|	expression ',' assignmentExpression #expressionList
 ;
 
 constantExpression:
@@ -129,7 +129,7 @@ directDeclarator:
 |	'(' declarator ')'
 |	directDeclarator '[' assignmentExpression? ']'
 |	directDeclarator '(' parameterTypeList? ')'
-// |	direct_declarator '(' identifier_list? ')' // What is this?
+// |	directDeclarator '(' identifierList? ')' // What is this?
 ;
 
 pointer:
@@ -151,10 +151,12 @@ parameterDeclaration:
 |	declarationSpecifiers
 ;
 
-identifierList:
-	Identifier
-|	identifierList ',' Identifier
-;
+// Rule is used by spec in directDeclarator, but we're not sure what it's actually for
+// Left out until its use can be determined
+//identifierList:
+//	Identifier
+//|	identifierList ',' Identifier
+//;
 
 typeName:
 	specifierQualifierList

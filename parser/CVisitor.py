@@ -14,8 +14,23 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#primaryExpression.
-    def visitPrimaryExpression(self, ctx:CParser.PrimaryExpressionContext):
+    # Visit a parse tree produced by CParser#identifier.
+    def visitIdentifier(self, ctx:CParser.IdentifierContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#constant.
+    def visitConstant(self, ctx:CParser.ConstantContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#stringLiteral.
+    def visitStringLiteral(self, ctx:CParser.StringLiteralContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#parenExpression.
+    def visitParenExpression(self, ctx:CParser.ParenExpressionContext):
         return self.visitChildren(ctx)
 
 
@@ -29,53 +44,163 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#unaryExpression.
-    def visitUnaryExpression(self, ctx:CParser.UnaryExpressionContext):
+    # Visit a parse tree produced by CParser#postfixDecrement.
+    def visitPostfixDecrement(self, ctx:CParser.PostfixDecrementContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#castExpression.
-    def visitCastExpression(self, ctx:CParser.CastExpressionContext):
+    # Visit a parse tree produced by CParser#prefixIncrement.
+    def visitPrefixIncrement(self, ctx:CParser.PrefixIncrementContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#multiplicativeExpression.
-    def visitMultiplicativeExpression(self, ctx:CParser.MultiplicativeExpressionContext):
+    # Visit a parse tree produced by CParser#unaryPassthrough.
+    def visitUnaryPassthrough(self, ctx:CParser.UnaryPassthroughContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#additiveExpression.
-    def visitAdditiveExpression(self, ctx:CParser.AdditiveExpressionContext):
+    # Visit a parse tree produced by CParser#postfixIncrement.
+    def visitPostfixIncrement(self, ctx:CParser.PostfixIncrementContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#relationalExpression.
-    def visitRelationalExpression(self, ctx:CParser.RelationalExpressionContext):
+    # Visit a parse tree produced by CParser#unary.
+    def visitUnary(self, ctx:CParser.UnaryContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#equalityExpression.
-    def visitEqualityExpression(self, ctx:CParser.EqualityExpressionContext):
+    # Visit a parse tree produced by CParser#prefixDecrement.
+    def visitPrefixDecrement(self, ctx:CParser.PrefixDecrementContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#logicalExpression.
-    def visitLogicalExpression(self, ctx:CParser.LogicalExpressionContext):
+    # Visit a parse tree produced by CParser#castPassthrough.
+    def visitCastPassthrough(self, ctx:CParser.CastPassthroughContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#conditionalExpression.
-    def visitConditionalExpression(self, ctx:CParser.ConditionalExpressionContext):
+    # Visit a parse tree produced by CParser#cast.
+    def visitCast(self, ctx:CParser.CastContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#assignmentExpression.
-    def visitAssignmentExpression(self, ctx:CParser.AssignmentExpressionContext):
+    # Visit a parse tree produced by CParser#division.
+    def visitDivision(self, ctx:CParser.DivisionContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#expression.
-    def visitExpression(self, ctx:CParser.ExpressionContext):
+    # Visit a parse tree produced by CParser#multiplicativePassthrough.
+    def visitMultiplicativePassthrough(self, ctx:CParser.MultiplicativePassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#multiplication.
+    def visitMultiplication(self, ctx:CParser.MultiplicationContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#modulo.
+    def visitModulo(self, ctx:CParser.ModuloContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#additivePassthrough.
+    def visitAdditivePassthrough(self, ctx:CParser.AdditivePassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#subtraction.
+    def visitSubtraction(self, ctx:CParser.SubtractionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#addition.
+    def visitAddition(self, ctx:CParser.AdditionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#largerThan.
+    def visitLargerThan(self, ctx:CParser.LargerThanContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#smallerThan.
+    def visitSmallerThan(self, ctx:CParser.SmallerThanContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#relationalPassthrough.
+    def visitRelationalPassthrough(self, ctx:CParser.RelationalPassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#smallerThanOrEqual.
+    def visitSmallerThanOrEqual(self, ctx:CParser.SmallerThanOrEqualContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#largerThanOrEqual.
+    def visitLargerThanOrEqual(self, ctx:CParser.LargerThanOrEqualContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#equalityPassthrough.
+    def visitEqualityPassthrough(self, ctx:CParser.EqualityPassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#equals.
+    def visitEquals(self, ctx:CParser.EqualsContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#notEquals.
+    def visitNotEquals(self, ctx:CParser.NotEqualsContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#logicalPassthrough.
+    def visitLogicalPassthrough(self, ctx:CParser.LogicalPassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#logicalAnd.
+    def visitLogicalAnd(self, ctx:CParser.LogicalAndContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#logicalOr.
+    def visitLogicalOr(self, ctx:CParser.LogicalOrContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#conditionalPassthrough.
+    def visitConditionalPassthrough(self, ctx:CParser.ConditionalPassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#conditional.
+    def visitConditional(self, ctx:CParser.ConditionalContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#assignmentPassthrough.
+    def visitAssignmentPassthrough(self, ctx:CParser.AssignmentPassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#assignment.
+    def visitAssignment(self, ctx:CParser.AssignmentContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#expressionList.
+    def visitExpressionList(self, ctx:CParser.ExpressionListContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#expressionPassthrough.
+    def visitExpressionPassthrough(self, ctx:CParser.ExpressionPassthroughContext):
         return self.visitChildren(ctx)
 
 
@@ -141,11 +266,6 @@ class CVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CParser#parameterDeclaration.
     def visitParameterDeclaration(self, ctx:CParser.ParameterDeclarationContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CParser#identifierList.
-    def visitIdentifierList(self, ctx:CParser.IdentifierListContext):
         return self.visitChildren(ctx)
 
 
