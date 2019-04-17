@@ -54,6 +54,16 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CParser#indirection.
+    def visitIndirection(self, ctx:CParser.IndirectionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#logicalNot.
+    def visitLogicalNot(self, ctx:CParser.LogicalNotContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CParser#prefixIncrement.
     def visitPrefixIncrement(self, ctx:CParser.PrefixIncrementContext):
         return self.visitChildren(ctx)
@@ -64,13 +74,18 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CParser#unaryPlus.
+    def visitUnaryPlus(self, ctx:CParser.UnaryPlusContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CParser#postfixIncrement.
     def visitPostfixIncrement(self, ctx:CParser.PostfixIncrementContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#unary.
-    def visitUnary(self, ctx:CParser.UnaryContext):
+    # Visit a parse tree produced by CParser#unaryMinus.
+    def visitUnaryMinus(self, ctx:CParser.UnaryMinusContext):
         return self.visitChildren(ctx)
 
 

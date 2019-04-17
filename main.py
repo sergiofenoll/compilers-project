@@ -1,5 +1,6 @@
 import sys
 import AST.AST as AST
+import AST.STT as STT
 import textwrap
 from AST.ASTBuilderListener import ASTBuilder
 from antlr4 import *
@@ -12,13 +13,14 @@ def main(argv):
     stream = CommonTokenStream(lexer)
     parser = CParser(stream)
     tree = parser.compilationUnit()
-    ast = AST.ASTBaseNode("Root")
+    stt = STT.STTNode()
+    ast = AST.ASTBaseNode("Root", stt)
 
     builder = ASTBuilder(ast)
     walker = ParseTreeWalker()
     walker.walk(builder, tree)
 
-    ptv = ParseTreeVisualizer(ast)
+    ptv = ParseTreeVisualizer(stt)
     print(ptv.gendot())
 
 

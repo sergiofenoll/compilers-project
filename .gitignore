@@ -15,6 +15,10 @@ compile_commands.json
 CTestTestfile.cmake
 build.sh
 
+*.jar
+*.dot
+*.png
+
 # Antlr files
 C.interp
 C.tokens

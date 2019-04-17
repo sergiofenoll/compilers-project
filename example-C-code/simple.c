@@ -1,3 +1,5 @@
+int f() {
+}
 int main() {
     int someInt = 10;
     int someOtherInt = 0;

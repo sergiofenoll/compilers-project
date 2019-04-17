@@ -89,6 +89,24 @@ class CListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CParser#indirection.
+    def enterIndirection(self, ctx:CParser.IndirectionContext):
+        pass
+
+    # Exit a parse tree produced by CParser#indirection.
+    def exitIndirection(self, ctx:CParser.IndirectionContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#logicalNot.
+    def enterLogicalNot(self, ctx:CParser.LogicalNotContext):
+        pass
+
+    # Exit a parse tree produced by CParser#logicalNot.
+    def exitLogicalNot(self, ctx:CParser.LogicalNotContext):
+        pass
+
+
     # Enter a parse tree produced by CParser#prefixIncrement.
     def enterPrefixIncrement(self, ctx:CParser.PrefixIncrementContext):
         pass
@@ -107,6 +125,15 @@ class CListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CParser#unaryPlus.
+    def enterUnaryPlus(self, ctx:CParser.UnaryPlusContext):
+        pass
+
+    # Exit a parse tree produced by CParser#unaryPlus.
+    def exitUnaryPlus(self, ctx:CParser.UnaryPlusContext):
+        pass
+
+
     # Enter a parse tree produced by CParser#postfixIncrement.
     def enterPostfixIncrement(self, ctx:CParser.PostfixIncrementContext):
         pass
@@ -116,12 +143,12 @@ class CListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CParser#unary.
-    def enterUnary(self, ctx:CParser.UnaryContext):
+    # Enter a parse tree produced by CParser#unaryMinus.
+    def enterUnaryMinus(self, ctx:CParser.UnaryMinusContext):
         pass
 
-    # Exit a parse tree produced by CParser#unary.
-    def exitUnary(self, ctx:CParser.UnaryContext):
+    # Exit a parse tree produced by CParser#unaryMinus.
+    def exitUnaryMinus(self, ctx:CParser.UnaryMinusContext):
         pass
 
 

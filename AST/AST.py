@@ -1,21 +1,15 @@
 class ASTBaseNode:
-    def __init__(self, name=""):
+    def __init__(self, name=None, scope=None):
         self.parent = None
         self.children = []
-        self.name = name
-        self.scope = None
+        self.scope = scope
+        self.name = name or type(self).__name__
 
     def generateLLVMIR(self):
         pass
 
     def generateMIPS(self):
         pass
-
-
-class ASTScopedNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTScopedNode, self).__init__()
-        # Make new scope
 
 
 class ASTIdentifierNode(ASTBaseNode):
@@ -75,9 +69,77 @@ class ASTPrefixDecrementNode(ASTBaseNode):
         self.name = "pre--"
 
 
-class ASTUnaryOpNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTUnaryOpNode, self).__init__(name)
+class ASTUnaryPlusNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTUnaryPlusNode, self).__init__()
+        self.name = "+"
+
+
+class ASTUnaryMinusNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTUnaryMinusNode, self).__init__()
+        self.name = "-"
+
+
+class ASTLogicalNot(ASTBaseNode):
+    def __init__(self):
+        super(ASTLogicalNot, self).__init__()
+        self.name = "!"
+
+
+class ASTIndirection(ASTBaseNode):
+    def __init__(self):
+        super(ASTIndirection, self).__init__()
+
+
+class ASTCastNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTCastNode, self).__init__()
+
+
+class ASTAssignmentNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTAssignmentNode, self).__init__()
+
+
+class ASTMultiplicationNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTMultiplicationNode, self).__init__()
+
+
+class ASTDivisionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTDivisionNode, self).__init__()
+
+
+class ASTModuloNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTModuloNode, self).__init__()
+
+
+class ASTAdditionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTAdditionNode, self).__init__()
+
+
+class ASTSubtractionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTSubtractionNode, self).__init__()
+
+
+class ASTSmallerThanNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTSmallerThanNode, self).__init__()
+
+
+class ASTLargerThanNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTLargerThanNode, self).__init__()
+
+
+class ASTSmallerThanOrEqualNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTSmallerThanOrEqualNode, self).__init__()
 
 
 class ASTBinaryOpNode(ASTBaseNode):

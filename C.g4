@@ -30,7 +30,10 @@ unaryExpression:
 |	unaryExpression '--' #postfixDecrement
 |	'++' unaryExpression #prefixIncrement
 |	'--' unaryExpression #prefixDecrement
-|	('*' | '+' | '-' | '!') castExpression #unary
+|	'*' castExpression #indirection
+|   '+' castExpression #unaryPlus
+|   '-' castExpression #unaryMinus
+|   '!' castExpression #logicalNot
 ;
 
 castExpression:
