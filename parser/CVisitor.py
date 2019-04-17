@@ -34,13 +34,18 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#postfixExpression.
-    def visitPostfixExpression(self, ctx:CParser.PostfixExpressionContext):
+    # Visit a parse tree produced by CParser#functionCall.
+    def visitFunctionCall(self, ctx:CParser.FunctionCallContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#argumentExpressionList.
-    def visitArgumentExpressionList(self, ctx:CParser.ArgumentExpressionListContext):
+    # Visit a parse tree produced by CParser#postfixPassthrough.
+    def visitPostfixPassthrough(self, ctx:CParser.PostfixPassthroughContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#arrayAccess.
+    def visitArrayAccess(self, ctx:CParser.ArrayAccessContext):
         return self.visitChildren(ctx)
 
 

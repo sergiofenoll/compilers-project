@@ -12,17 +12,17 @@ primaryExpression:
 ;
 
 postfixExpression:
-	primaryExpression
-|	postfixExpression '[' expression ']'
-|	postfixExpression '(' argumentExpressionList? ')'
-|	postfixExpression '.' Identifier
-|	postfixExpression '->' Identifier
+	primaryExpression #postfixPassthrough
+|	postfixExpression '[' expression ']' #arrayAccess
+|	postfixExpression '(' assignmentExpression? (',' assignmentExpression)* ')' #functionCall
+// |	postfixExpression '.' Identifier
+// |	postfixExpression '->' Identifier
 ;
 
-argumentExpressionList:
-	assignmentExpression
-|	argumentExpressionList ',' assignmentExpression
-;
+// argumentExpressionList:
+//	assignmentExpression
+//|	argumentExpressionList ',' assignmentExpression
+//;
 
 unaryExpression:
 	postfixExpression #unaryPassthrough
@@ -142,8 +142,7 @@ parameterTypeList:
 ;
 
 parameterList:
-	parameterDeclaration
-|	parameterList ',' parameterDeclaration
+	parameterDeclaration (',' parameterDeclaration)*
 ;
 
 parameterDeclaration:

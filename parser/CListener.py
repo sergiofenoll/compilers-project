@@ -53,21 +53,30 @@ class CListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CParser#postfixExpression.
-    def enterPostfixExpression(self, ctx:CParser.PostfixExpressionContext):
+    # Enter a parse tree produced by CParser#functionCall.
+    def enterFunctionCall(self, ctx:CParser.FunctionCallContext):
         pass
 
-    # Exit a parse tree produced by CParser#postfixExpression.
-    def exitPostfixExpression(self, ctx:CParser.PostfixExpressionContext):
+    # Exit a parse tree produced by CParser#functionCall.
+    def exitFunctionCall(self, ctx:CParser.FunctionCallContext):
         pass
 
 
-    # Enter a parse tree produced by CParser#argumentExpressionList.
-    def enterArgumentExpressionList(self, ctx:CParser.ArgumentExpressionListContext):
+    # Enter a parse tree produced by CParser#postfixPassthrough.
+    def enterPostfixPassthrough(self, ctx:CParser.PostfixPassthroughContext):
         pass
 
-    # Exit a parse tree produced by CParser#argumentExpressionList.
-    def exitArgumentExpressionList(self, ctx:CParser.ArgumentExpressionListContext):
+    # Exit a parse tree produced by CParser#postfixPassthrough.
+    def exitPostfixPassthrough(self, ctx:CParser.PostfixPassthroughContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#arrayAccess.
+    def enterArrayAccess(self, ctx:CParser.ArrayAccessContext):
+        pass
+
+    # Exit a parse tree produced by CParser#arrayAccess.
+    def exitArrayAccess(self, ctx:CParser.ArrayAccessContext):
         pass
 
 
