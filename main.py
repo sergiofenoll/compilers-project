@@ -14,16 +14,21 @@ def optimise_ast(ast):
     #   - Remove code that comes after return, break or continue
     #   - Remove declarations for unused variables
     #   - Fold constants
+    #   - Remove useless code: arithmetic expressions that evaluate to known values
 
     stack = list()
-    stack.append(ast)
+    queue = list()
+    queue.append(ast)
 
+    while queue:
+        node = queue.pop(0)
+        stack.append(node)
+        for child in node.children[::-1]:
+            queue.append(child)
+    
     while stack:
         node = stack.pop()
         node.optimise()
-        for child in node.children:
-            stack.append(child)
-
 
 def main(argv):
     file_input = FileStream(argv[1])

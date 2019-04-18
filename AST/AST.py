@@ -164,8 +164,9 @@ class ASTCastNode(ASTUnaryExpressionNode):
 
 
 class ASTBinaryExpressionNode(ASTBaseNode):
-    def __init__(self):
+    def __init__(self, c_idx = None):
         super(ASTBinaryExpressionNode, self).__init__()
+        self.c_idx = c_idx
 
     def left(self):
         return self.children[0]
@@ -181,21 +182,73 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
 
 
 class ASTMultiplicationNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTMultiplicationNode, self).__init__()
+    def __init__(self, c_idx):
+        super(ASTMultiplicationNode, self).__init__(c_idx)
         self.name = "*"
+
+    def optimise(self):
+        # Handles multiplication by 1 and 0
+
+        rhs = int(self.right().value) if isinstance(self.right(), ASTConstantNode) else None
+        lhs = int(self.left().value) if isinstance(self.left(), ASTConstantNode) else None
+
+        if rhs == 0 or lhs == 0:
+            # Evaluates to 0
+            new_node = ASTConstantNode(0)
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            self.parent.children.pop(self.c_idx)
+            self.parent.children.insert(self.c_idx, new_node)
+            self = new_node
+
+
+        elif rhs == 1:
+            # Evaluates to lhs
+            self.parent.children.pop(self.c_idx)
+            self.parent.children.insert(self.c_idx, self.left())
+            self = None
+        
+        elif lhs == 1:
+            # Evaluaties to rhs
+            self.parent.children.pop(self.c_idx)
+            self.parent.children.insert(self.c_idx, self.right())
+            self = None
 
 
 class ASTDivisionNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTDivisionNode, self).__init__()
+    def __init__(self, c_idx):
+        super(ASTDivisionNode, self).__init__(c_idx)
         self.name = "/"
+
+    def optimise(self):
+        # Handles division by 1 and, if possible, division by 0
+
+        rhs = int(self.right().value)
+        if rhs == 1:
+            # This entire division will evaluate to the lhs
+            self.parent.children.pop(self.c_idx)
+            self.parent.children.insert(self.c_idx, self.left())
+            self = None
+        elif rhs == 0:
+            # Division by 0: warn user
+            print("[WARNING] Division by 0.")
 
 
 class ASTModuloNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTModuloNode, self).__init__()
+    def __init__(self, c_idx):
+        super(ASTModuloNode, self).__init__(c_idx)
         self.name = "%"
+
+    def optimise(self):
+
+        if int(self.right().value) == 1:
+            # Always returns 0, so replace with constant
+            new_node = ASTConstantNode(0)
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            self.parent.children.pop(self.c_idx)
+            self.parent.children.insert(self.c_idx, new_node)
+            self = new_node
 
 
 class ASTAdditionNode(ASTBinaryExpressionNode):
@@ -259,9 +312,17 @@ class ASTLogicalOrNode(ASTBinaryExpressionNode):
 
 
 class ASTDeclarationNode(ASTBaseNode):
-    def __init__(self):
+    def __init__(self, c_idx = None):
         super(ASTDeclarationNode, self).__init__()
         self.name = "Decl"
+        self.c_idx = c_idx
+
+    def optimise(self):
+        # Prune declarations for unused variables
+        STEntry = self.scope.lookup(self.identifier().value)
+        if STEntry and not STEntry.used:
+            self.parent.children.pop(self.c_idx)
+            self = None
 
     def type(self):
         return self.children[0]

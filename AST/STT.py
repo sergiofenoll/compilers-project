@@ -85,11 +85,12 @@ class STTNode:
 
 
 class STTEntry:
-    def __init__(self, identifier, type_desc, args=None, value=None):
+    def __init__(self, identifier, type_desc, args=None, value=None, used=False):
         self.identifier = identifier
         self.type_desc = type_desc
         self.args = args or []
         self.value = value
+        self.used = True
 
     def dotRepresentation(self):
         return f'''

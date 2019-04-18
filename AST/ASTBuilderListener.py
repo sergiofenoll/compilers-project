@@ -174,7 +174,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterMultiplication(self, ctx:CParser.MultiplicationContext):
-        node = AST.ASTMultiplicationNode()
+        node = AST.ASTMultiplicationNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -184,7 +184,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterDivision(self, ctx:CParser.DivisionContext):
-        node = AST.ASTDivisionNode()
+        node = AST.ASTDivisionNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -194,7 +194,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterModulo(self, ctx:CParser.ModuloContext):
-        node = AST.ASTModuloNode()
+        node = AST.ASTModuloNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -446,7 +446,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterDeclaration(self, ctx:CParser.DeclarationContext):
-        node = AST.ASTDeclarationNode()
+        node = AST.ASTDeclarationNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
