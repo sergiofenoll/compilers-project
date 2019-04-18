@@ -36,7 +36,7 @@ class ASTBuilder(CListener):
         self.current_node = ast
 
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
-        node = AST.ASTIdentifierNode(str(ctx.Identifier()))
+        node = AST.ASTIdentifierNode(str(ctx.Identifier()), c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -331,7 +331,7 @@ class ASTBuilder(CListener):
 
     def enterDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
         if ctx.Identifier():
-            node = AST.ASTIdentifierNode(str(ctx.Identifier()))
+            node = AST.ASTIdentifierNode(str(ctx.Identifier()), c_idx = len(self.current_node.children))
             node.parent = self.current_node
             node.scope = self.current_node.scope
             self.current_node.children.append(node)
@@ -389,15 +389,44 @@ class ASTBuilder(CListener):
     def exitIterationStatement(self, ctx:CParser.IterationStatementContext):
         self.current_node = self.current_node.parent
 
-    def enterJumpStatement(self, ctx:CParser.JumpStatementContext):
-        jump = ctx.Goto() or ctx.Continue() or ctx.Break() or ctx.Return()
-        node = AST.ASTJumpStmtNode(jump)
+    def enterGoto(self, ctx:CParser.GotoContext):
+        node = AST.ASTGotoNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
         self.current_node = node
 
-    def exitJumpStatement(self, ctx:CParser.JumpStatementContext):
+    def exitGoto(self, ctx:CParser.GotoContext):
+        self.current_node = self.current_node.parent
+
+    def enterContinue(self, ctx:CParser.ContinueContext):
+        node = AST.ASTContinueNode(c_idx = len(self.current_node.children))
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitContinue(self, ctx:CParser.GotoContext):
+        self.current_node = self.current_node.parent
+
+    def enterBreak(self, ctx:CParser.BreakContext):
+        node = AST.ASTBreakNode(c_idx = len(self.current_node.children))
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitBreak(self, ctx:CParser.GotoContext):
+        self.current_node = self.current_node.parent
+
+    def enterReturn(self, ctx:CParser.ReturnContext):
+        node = AST.ASTReturnNode(c_idx = len(self.current_node.children))
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+    
+    def exitReturn(self, ctx:CParser.GotoContext):
         self.current_node = self.current_node.parent
 
     def enterCompoundStatement(self, ctx:CParser.CompoundStatementContext):

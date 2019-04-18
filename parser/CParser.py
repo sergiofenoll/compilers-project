@@ -4339,45 +4339,123 @@ class CParser ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def Goto(self):
-            return self.getToken(CParser.Goto, 0)
-
-        def Identifier(self):
-            return self.getToken(CParser.Identifier, 0)
-
-        def EOS(self):
-            return self.getToken(CParser.EOS, 0)
-
-        def Continue(self):
-            return self.getToken(CParser.Continue, 0)
-
-        def Break(self):
-            return self.getToken(CParser.Break, 0)
-
-        def Return(self):
-            return self.getToken(CParser.Return, 0)
-
-        def expression(self):
-            return self.getTypedRuleContext(CParser.ExpressionContext,0)
-
 
         def getRuleIndex(self):
             return CParser.RULE_jumpStatement
 
+     
+        def copyFrom(self, ctx:ParserRuleContext):
+            super().copyFrom(ctx)
+
+
+
+    class GotoContext(JumpStatementContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.JumpStatementContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def Goto(self):
+            return self.getToken(CParser.Goto, 0)
+        def Identifier(self):
+            return self.getToken(CParser.Identifier, 0)
+        def EOS(self):
+            return self.getToken(CParser.EOS, 0)
+
         def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterJumpStatement" ):
-                listener.enterJumpStatement(self)
+            if hasattr( listener, "enterGoto" ):
+                listener.enterGoto(self)
 
         def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitJumpStatement" ):
-                listener.exitJumpStatement(self)
+            if hasattr( listener, "exitGoto" ):
+                listener.exitGoto(self)
 
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitJumpStatement" ):
-                return visitor.visitJumpStatement(self)
+            if hasattr( visitor, "visitGoto" ):
+                return visitor.visitGoto(self)
             else:
                 return visitor.visitChildren(self)
 
+
+    class BreakContext(JumpStatementContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.JumpStatementContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def Break(self):
+            return self.getToken(CParser.Break, 0)
+        def EOS(self):
+            return self.getToken(CParser.EOS, 0)
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterBreak" ):
+                listener.enterBreak(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitBreak" ):
+                listener.exitBreak(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitBreak" ):
+                return visitor.visitBreak(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class ContinueContext(JumpStatementContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.JumpStatementContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def Continue(self):
+            return self.getToken(CParser.Continue, 0)
+        def EOS(self):
+            return self.getToken(CParser.EOS, 0)
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterContinue" ):
+                listener.enterContinue(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitContinue" ):
+                listener.exitContinue(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitContinue" ):
+                return visitor.visitContinue(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class ReturnContext(JumpStatementContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.JumpStatementContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def Return(self):
+            return self.getToken(CParser.Return, 0)
+        def EOS(self):
+            return self.getToken(CParser.EOS, 0)
+        def expression(self):
+            return self.getTypedRuleContext(CParser.ExpressionContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterReturn" ):
+                listener.enterReturn(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitReturn" ):
+                listener.exitReturn(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitReturn" ):
+                return visitor.visitReturn(self)
+            else:
+                return visitor.visitChildren(self)
 
 
 
@@ -4391,6 +4469,7 @@ class CParser ( Parser ):
             self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [CParser.Goto]:
+                localctx = CParser.GotoContext(self, localctx)
                 self.enterOuterAlt(localctx, 1)
                 self.state = 463
                 self.match(CParser.Goto)
@@ -4400,6 +4479,7 @@ class CParser ( Parser ):
                 self.match(CParser.EOS)
                 pass
             elif token in [CParser.Continue]:
+                localctx = CParser.ContinueContext(self, localctx)
                 self.enterOuterAlt(localctx, 2)
                 self.state = 466
                 self.match(CParser.Continue)
@@ -4407,6 +4487,7 @@ class CParser ( Parser ):
                 self.match(CParser.EOS)
                 pass
             elif token in [CParser.Break]:
+                localctx = CParser.BreakContext(self, localctx)
                 self.enterOuterAlt(localctx, 3)
                 self.state = 468
                 self.match(CParser.Break)
@@ -4414,6 +4495,7 @@ class CParser ( Parser ):
                 self.match(CParser.EOS)
                 pass
             elif token in [CParser.Return]:
+                localctx = CParser.ReturnContext(self, localctx)
                 self.enterOuterAlt(localctx, 4)
                 self.state = 470
                 self.match(CParser.Return)

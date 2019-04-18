@@ -611,12 +611,39 @@ class CListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CParser#jumpStatement.
-    def enterJumpStatement(self, ctx:CParser.JumpStatementContext):
+    # Enter a parse tree produced by CParser#goto.
+    def enterGoto(self, ctx:CParser.GotoContext):
         pass
 
-    # Exit a parse tree produced by CParser#jumpStatement.
-    def exitJumpStatement(self, ctx:CParser.JumpStatementContext):
+    # Exit a parse tree produced by CParser#goto.
+    def exitGoto(self, ctx:CParser.GotoContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#continue.
+    def enterContinue(self, ctx:CParser.ContinueContext):
+        pass
+
+    # Exit a parse tree produced by CParser#continue.
+    def exitContinue(self, ctx:CParser.ContinueContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#break.
+    def enterBreak(self, ctx:CParser.BreakContext):
+        pass
+
+    # Exit a parse tree produced by CParser#break.
+    def exitBreak(self, ctx:CParser.BreakContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#return.
+    def enterReturn(self, ctx:CParser.ReturnContext):
+        pass
+
+    # Exit a parse tree produced by CParser#return.
+    def exitReturn(self, ctx:CParser.ReturnContext):
         pass
 
 

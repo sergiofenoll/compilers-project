@@ -221,10 +221,10 @@ iterationStatement:
 ;
 
 jumpStatement:
-	Goto Identifier ';'
-|	Continue ';'
-|	Break ';'
-|	Return expression? ';'
+	Goto Identifier ';'     #goto
+|	Continue ';'            #continue
+|	Break ';'               #break
+|	Return expression? ';'  #return
 ;
 
 functionDefinition:

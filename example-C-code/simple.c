@@ -5,7 +5,7 @@ int main(int argc, char* argv[]) {
         b = 5;
     }
     else if (a == 2) {
-        b = 6;
+        b = a + 2;
     }
     else {
         b = 7;
@@ -13,4 +13,6 @@ int main(int argc, char* argv[]) {
     int c;
     c = a ? b : 1;
     return 0;
+    int d = 430;
+    d -= 10;
 }

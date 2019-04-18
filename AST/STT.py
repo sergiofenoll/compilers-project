@@ -13,7 +13,18 @@ class STTNode:
         # Maintenance variable for dotfile generation
         self.__num = 0
 
+    def lookup(self, name):
+        # Searches for name in scope & ancestors of scope. If found, return entry. If not found, return None
 
+        if name in self.table:
+            return self.table[name]
+        else:
+            scope = self
+            while scope.parent is not None:
+                scope = scope.parent
+                if name in scope.table:
+                    return scope.table[name]
+        return None
 
     def generateDot(self, output):
         output.write("""\
@@ -74,10 +85,11 @@ class STTNode:
 
 
 class STTEntry:
-    def __init__(self, identifier, type_desc, args=None):
+    def __init__(self, identifier, type_desc, args=None, value=None):
         self.identifier = identifier
         self.type_desc = type_desc
         self.args = args or []
+        self.value = value
 
     def dotRepresentation(self):
         return f'''
@@ -86,3 +98,7 @@ class STTEntry:
             <td border="1">{self.type_desc}</td>
             <td border="1">{", ".join(arg for arg in self.args)}</td>
         </tr>'''
+
+    def __repr__(self):
+        r = "{} | {} | {} | {}".format(self.identifier, self.type_desc, self.args, self.value)
+        return r

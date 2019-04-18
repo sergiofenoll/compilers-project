@@ -14,6 +14,9 @@ class ASTBaseNode:
     def generateMIPS(self):
         pass
 
+    def optimise(self):
+        pass
+
     def generateDot(self, output):
         output.write("""\
         digraph astgraph {
@@ -40,10 +43,32 @@ class ASTBaseNode:
 
 
 class ASTIdentifierNode(ASTBaseNode):
-    def __init__(self, value):
+    def __init__(self, value, c_idx = None):
         super(ASTIdentifierNode, self).__init__()
         self.value = value
         self.name = "Identifier:" + str(value)
+        self.c_idx = c_idx
+    
+    def optimise(self):
+        # If value known from Symbol Table, remove declaration & swap uses with constant value
+
+        # Lookup identifier in accessible scopes
+        STEntry = self.scope.lookup(self.value)
+        if STEntry and STEntry.value:
+            if isinstance(self.parent, ASTAssignmentNode) and self.parent.left() == self:
+                return
+            if isinstance(self.parent, ASTDeclarationNode):
+                # Delete declaration
+                pass
+            else:
+                # Replace with constant node
+                new_node = ASTConstantNode(STEntry.value)
+                new_node.parent = self.parent
+                new_node.scope = self.scope
+                self.parent.children.pop(self.c_idx)
+                self.parent.children.insert(self.c_idx, new_node)
+                self = new_node
+
 
 
 class ASTConstantNode(ASTBaseNode):
@@ -288,9 +313,43 @@ class ASTForStmtNode(ASTBaseNode):
         super(ASTForStmtNode, self).__init__(name)
 
 
-class ASTJumpStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTJumpStmtNode, self).__init__(name)
+class ASTGotoNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTGotoNode, self).__init__()
+
+
+class ASTContinueNode(ASTBaseNode):
+    def __init__(self, c_idx = None):
+        super(ASTContinueNode, self).__init__()
+        self.c_idx = c_idx
+    
+    def optimise(self):
+        # Prune siblings that come after this continue
+        if self.c_idx is not None:
+            self.parent.children = self.parent.children[:self.c_idx+1]
+
+
+class ASTBreakNode(ASTBaseNode):
+    def __init__(self, c_idx = None):
+        super(ASTBreakNode, self).__init__()
+        self.c_idx = c_idx
+    
+    def optimise(self):
+        # Prune siblings that come after this break
+        if self.c_idx is not None:
+            self.parent.children = self.parent.children[:self.c_idx+1]
+
+
+class ASTReturnNode(ASTBaseNode):
+    def __init__(self, c_idx):
+        super(ASTReturnNode, self).__init__()
+        self.c_idx = c_idx
+
+    def optimise(self):
+        # Prune siblings that come after this return
+        if self.c_idx is not None:
+            self.parent.children = self.parent.children[:self.c_idx+1]
+
 
 
 class ASTCompoundStmtNode(ASTBaseNode):

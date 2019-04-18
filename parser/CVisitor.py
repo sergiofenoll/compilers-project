@@ -344,8 +344,23 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#jumpStatement.
-    def visitJumpStatement(self, ctx:CParser.JumpStatementContext):
+    # Visit a parse tree produced by CParser#goto.
+    def visitGoto(self, ctx:CParser.GotoContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#continue.
+    def visitContinue(self, ctx:CParser.ContinueContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#break.
+    def visitBreak(self, ctx:CParser.BreakContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#return.
+    def visitReturn(self, ctx:CParser.ReturnContext):
         return self.visitChildren(ctx)
 
 
