@@ -1,11 +1,16 @@
-int f() {
-}
-int main() {
-    int someInt = 10;
-    int someOtherInt = 0;
-    for (int i = 0; i < someInt; ++i) {
-        someOtherInt *= someInt - i;
+int main(int argc, char* argv[]) {
+    int a = 1;
+    int b;
+    if (a == 1) {
+        b = 5;
     }
-    printf(someOtherInt);
+    else if (a == 2) {
+        b = 6;
+    }
+    else {
+        b = 7;
+    }
+    int c;
+    c = a ? b : 1;
     return 0;
 }

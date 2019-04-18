@@ -186,8 +186,8 @@ statement:
 
 labeledStatement:
 	Identifier ':' statement
-|	Case constantExpression ':' statement
-|	Default ':' statement
+//|	Case constantExpression ':' statement
+//|	Default ':' statement
 ;
 
 compoundStatement:
@@ -211,7 +211,7 @@ expressionStatement:
 selectionStatement:
 	If '(' expression ')' statement
 |	If '(' expression ')' statement Else statement
-|	Switch '(' expression ')' statement
+//|	Switch '(' expression ')' statement
 ;
 
 iterationStatement:

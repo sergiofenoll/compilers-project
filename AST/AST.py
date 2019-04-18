@@ -5,11 +5,38 @@ class ASTBaseNode:
         self.scope = scope
         self.name = name or type(self).__name__
 
+        # Maintenance variable for dotfile generation
+        self.__num = 0
+
     def generateLLVMIR(self):
         pass
 
     def generateMIPS(self):
         pass
+
+    def generateDot(self, output):
+        output.write("""\
+        digraph astgraph {
+          node [shape=none, fontsize=12, fontname="Courier", height=.1];
+          ranksep=.3;
+          edge [arrowsize=.5]
+        """)
+        ncount = 1
+        queue = list()
+        queue.append(self)
+        output.write('  node{} [label="{}"]\n'.format(ncount, self.name))
+        self.__num = ncount
+        ncount += 1
+        while queue:
+            node = queue.pop(0)
+            for child in node.children:
+                output.write('  node{} [label="{}"]\n'.format(ncount, child.name))
+                child.__num = ncount
+                ncount += 1
+                output.write('  node{} -> node{}\n'.format(node.__num, child.__num))
+                queue.append(child)
+
+        output.write("}")
 
 
 class ASTIdentifierNode(ASTBaseNode):
@@ -33,123 +60,195 @@ class ASTStringLiteralNode(ASTBaseNode):
         self.name = "String literal:" + str(value)
 
 
-class ASTArrayAccessNode(ASTBaseNode):
+class ASTUnaryExpressionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTUnaryExpressionNode, self).__init__()
+
+    def identifier(self):
+        return self.children[0]
+
+
+class ASTArrayAccessNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTArrayAccessNode, self).__init__()
         self.name = "[]"
 
+    def indexer(self):
+        return self.children[1]
 
-class ASTFunctionCallNode(ASTBaseNode):
+
+class ASTFunctionCallNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTFunctionCallNode, self).__init__()
         self.name = "()"
 
+    def arguments(self):
+        return self.children[1]
 
-class ASTPostfixIncrementNode(ASTBaseNode):
+
+class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTPostfixIncrementNode, self).__init__()
         self.name = "post++"
 
 
-class ASTPostfixDecrementNode(ASTBaseNode):
+class ASTPostfixDecrementNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTPostfixDecrementNode, self).__init__()
         self.name = "post--"
 
 
-class ASTPrefixIncrementNode(ASTBaseNode):
+class ASTPrefixIncrementNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTPrefixIncrementNode, self).__init__()
         self.name = "pre++"
 
 
-class ASTPrefixDecrementNode(ASTBaseNode):
+class ASTPrefixDecrementNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTPrefixDecrementNode, self).__init__()
         self.name = "pre--"
 
 
-class ASTUnaryPlusNode(ASTBaseNode):
+class ASTUnaryPlusNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTUnaryPlusNode, self).__init__()
         self.name = "+"
 
 
-class ASTUnaryMinusNode(ASTBaseNode):
+class ASTUnaryMinusNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTUnaryMinusNode, self).__init__()
         self.name = "-"
 
 
-class ASTLogicalNot(ASTBaseNode):
+class ASTLogicalNotNode(ASTUnaryExpressionNode):
     def __init__(self):
-        super(ASTLogicalNot, self).__init__()
+        super(ASTLogicalNotNode, self).__init__()
         self.name = "!"
 
 
-class ASTIndirection(ASTBaseNode):
+class ASTIndirection(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTIndirection, self).__init__()
 
 
-class ASTCastNode(ASTBaseNode):
+class ASTCastNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTCastNode, self).__init__()
 
 
-class ASTAssignmentNode(ASTBaseNode):
+class ASTBinaryExpressionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTBinaryExpressionNode, self).__init__()
+
+    def left(self):
+        return self.children[0]
+
+    def right(self):
+        return self.children[1]
+
+
+class ASTAssignmentNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTAssignmentNode, self).__init__()
+        self.name = "="
 
 
-class ASTMultiplicationNode(ASTBaseNode):
+class ASTMultiplicationNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTMultiplicationNode, self).__init__()
+        self.name = "*"
 
 
-class ASTDivisionNode(ASTBaseNode):
+class ASTDivisionNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTDivisionNode, self).__init__()
+        self.name = "/"
 
 
-class ASTModuloNode(ASTBaseNode):
+class ASTModuloNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTModuloNode, self).__init__()
+        self.name = "%"
 
 
-class ASTAdditionNode(ASTBaseNode):
+class ASTAdditionNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTAdditionNode, self).__init__()
+        self.name = "+"
 
 
-class ASTSubtractionNode(ASTBaseNode):
+class ASTSubtractionNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTSubtractionNode, self).__init__()
+        self.name = "-"
 
 
-class ASTSmallerThanNode(ASTBaseNode):
+class ASTSmallerThanNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTSmallerThanNode, self).__init__()
+        self.name = "<"
 
 
-class ASTLargerThanNode(ASTBaseNode):
+class ASTLargerThanNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTLargerThanNode, self).__init__()
+        self.name = ">"
 
 
-class ASTSmallerThanOrEqualNode(ASTBaseNode):
+class ASTSmallerThanOrEqualNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTSmallerThanOrEqualNode, self).__init__()
+        self.name = "<="
 
 
-class ASTBinaryOpNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTBinaryOpNode, self).__init__(name)
+class ASTLargerThanOrEqualNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTLargerThanOrEqualNode, self).__init__()
+        self.name = ">="
+
+
+class ASTEqualsNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTEqualsNode, self).__init__()
+        self.name = "=="
+
+
+class ASTNotEqualsNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTNotEqualsNode, self).__init__()
+        self.name = "!="
+
+
+class ASTLogicalAndNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTLogicalAndNode, self).__init__()
+        self.name = "&&"
+
+
+class ASTLogicalOrNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTLogicalOrNode, self).__init__()
+        self.name = "||"
 
 
 class ASTDeclarationNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTDeclarationNode, self).__init__(name)
+    def __init__(self):
+        super(ASTDeclarationNode, self).__init__()
+        self.name = "Decl"
+
+    def type(self):
+        return self.children[0]
+
+    def identifier(self):
+        return self.children[1]
+
+    def initializer(self):
+        try:
+            return self.children[2]
+        except IndexError:
+            return None
 
 
 class ASTLabelStmtNode(ASTBaseNode):
@@ -168,13 +267,15 @@ class ASTDefaultStmtNode(ASTBaseNode):
 
 
 class ASTIfStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTIfStmtNode, self).__init__(name)
+    def __init__(self):
+        super(ASTIfStmtNode, self).__init__()
+        self.name = "If"
 
 
 class ASTSwitchStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTSwitchStmtNode, self).__init__(name)
+    def __init__(self):
+        super(ASTSwitchStmtNode, self).__init__()
+        self.name = "Switch"
 
 
 class ASTWhileStmtNode(ASTBaseNode):
@@ -193,13 +294,27 @@ class ASTJumpStmtNode(ASTBaseNode):
 
 
 class ASTCompoundStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTCompoundStmtNode, self).__init__(name)
+    def __init__(self):
+        super(ASTCompoundStmtNode, self).__init__()
+        self.name = "{}"
 
 
 class ASTFunctionDefinitionNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTFunctionDefinitionNode, self).__init__(name)
+    def __init__(self):
+        super(ASTFunctionDefinitionNode, self).__init__()
+        self.name = "FuncDef"
+
+    def returnType(self):
+        return self.children[0]
+
+    def identifier(self):
+        return self.children[1]
+
+    def arguments(self):
+        if isinstance(self.children[2], ASTCompoundStmtNode):
+            return []
+        else:
+            return self.children[2].children
 
 
 class ASTTypeSpecifierNode(ASTBaseNode):

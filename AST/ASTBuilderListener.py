@@ -36,19 +36,19 @@ class ASTBuilder(CListener):
         self.current_node = ast
 
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
-        node = AST.ASTIdentifierNode(ctx.Identifier())
+        node = AST.ASTIdentifierNode(str(ctx.Identifier()))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
     def enterConstant(self, ctx:CParser.ConstantContext):
-        node = AST.ASTConstantNode(ctx.Constant())
+        node = AST.ASTConstantNode(str(ctx.Constant()))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
     def enterStringLiteral(self, ctx:CParser.StringLiteralContext):
-        node = AST.ASTStringLiteralNode(ctx.StringLiteral())
+        node = AST.ASTStringLiteralNode(str(ctx.StringLiteral()))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -134,7 +134,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLogicalNot(self, ctx:CParser.LogicalNotContext):
-        node = AST.ASTLogicalNot()
+        node = AST.ASTLogicalNotNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -214,7 +214,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterSubtraction(self, ctx:CParser.SubtractionContext):
-        node = AST.ASTBinaryOpNode("Subtraction")
+        node = AST.ASTSubtractionNode()
         node.parent = self.current_node
         self.current_node.children.append(node)
         self.current_node = node
@@ -253,7 +253,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLargerThanOrEqual(self, ctx:CParser.LargerThanOrEqualContext):
-        node = AST.ASTBinaryOpNode("LargerThanOrEqual")
+        node = AST.ASTLargerThanOrEqualNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -263,7 +263,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterEquals(self, ctx:CParser.EqualsContext):
-        node = AST.ASTBinaryOpNode("Equals")
+        node = AST.ASTEqualsNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -273,7 +273,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterNotEquals(self, ctx:CParser.NotEqualsContext):
-        node = AST.ASTBinaryOpNode("NotEquals")
+        node = AST.ASTNotEqualsNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -283,7 +283,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLogicalAnd(self, ctx:CParser.LogicalAndContext):
-        node = AST.ASTBinaryOpNode("LogicalAnd")
+        node = AST.ASTLogicalAndNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -293,7 +293,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLogicalOr(self, ctx:CParser.LogicalOrContext):
-        node = AST.ASTBinaryOpNode("LogicalOr")
+        node = AST.ASTLogicalOrNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -303,7 +303,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterConditional(self, ctx:CParser.ConditionalContext):
-        node = AST.ASTIfStmtNode("Conditional")
+        node = AST.ASTIfStmtNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -331,7 +331,7 @@ class ASTBuilder(CListener):
 
     def enterDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
         if ctx.Identifier():
-            node = AST.ASTIdentifierNode(ctx.Identifier())
+            node = AST.ASTIdentifierNode(str(ctx.Identifier()))
             node.parent = self.current_node
             node.scope = self.current_node.scope
             self.current_node.children.append(node)
@@ -354,11 +354,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterSelectionStatement(self, ctx:CParser.SelectionStatementContext):
-        node = AST.ASTBaseNode("")
-        if ctx.If():
-            node = AST.ASTIfStmtNode("If")
-        elif ctx.Switch():
-            node = AST.ASTSwitchStmtNode("Switch")
+        node = AST.ASTIfStmtNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -405,7 +401,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterCompoundStatement(self, ctx:CParser.CompoundStatementContext):
-        node = AST.ASTCompoundStmtNode("CompoundStatement")
+        node = AST.ASTCompoundStmtNode()
         node.parent = self.current_node
         if isinstance(ctx.parentCtx, CParser.FunctionDefinitionContext):
             node.scope = self.current_node.scope
@@ -421,17 +417,28 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterDeclaration(self, ctx:CParser.DeclarationContext):
-        node = AST.ASTDeclarationNode("Declaration")
+        node = AST.ASTDeclarationNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
         self.current_node = node
 
     def exitDeclaration(self, ctx:CParser.DeclarationContext):
+        # Add identifier to symbol table
+        type_spec = self.current_node.type().tspec
+        identifier = self.current_node.identifier().value
+
+        if identifier not in self.current_node.scope.table:
+            self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
+        else:
+            # TODO: Error about double declaration
+            print("OI CUNT, YOU DECLARED THIS VARIABLE ALREADY")
+            exit()
+
         self.current_node = self.current_node.parent
 
     def enterFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
-        node = AST.ASTFunctionDefinitionNode("FunctionDefinition")
+        node = AST.ASTFunctionDefinitionNode()
         node.parent = self.current_node
         scope = STT.STTNode()
         scope.parent = self.current_node.scope
@@ -441,4 +448,22 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
+        # Add identifier to symbol table
+        type_spec = self.current_node.returnType().tspec
+        identifier = self.current_node.identifier().value
+        args = []
+        for arg in self.current_node.arguments():
+            try:
+                args.append(arg.tspec)
+            except AttributeError:
+                # Skip identifiers
+                pass
+
         self.current_node = self.current_node.parent
+
+        if identifier not in self.current_node.scope.table:
+            self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
+        else:
+            # TODO: Error about double declaration
+            print("OI CUNT, YOU DECLARED THIS FUNCTION ALREADY")
+            exit()
