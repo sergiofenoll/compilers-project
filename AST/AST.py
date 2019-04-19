@@ -466,16 +466,23 @@ class ASTDeclarationNode(ASTBaseNode):
 
         # Allocate new register
         register = self.children[1]._generateLLVMIR()
-        llvmir = register + " = allocate " + self.children[0]._generateLLVMIR()  # Identifier
+        llvmir = register + " = alloca " + self.children[0]._generateLLVMIR()  # Identifier
 
         # Evaluate definition
         if len(self.children) > 2:
             value_node = self.children[2]
-            if isinstance(value_node, ASTConstantNode):
-                llvmir += "\n"
-                llvmir += "store "
-                llvmir += CTypeToLLVMType(value_node.type()) + "* " + str(value_node.value()) + ", "
-                llvmir += CTypeToLLVMType(self.type()) + " " + register + "\n"
+            value = None
+            if not isinstance(value_node, ASTConstantNode):
+                # This is an expression of some sort; generate code to evaluate the expression
+                llvmir += value_node._generateLLVMIR()
+            else:
+                value = str(value_node.value)
+
+            # Store value (expression or constant) in register
+            llvmir += "\n"
+            llvmir += "store "
+            llvmir += CTypeToLLVMType(value_node.type()) + "* " + str(value_node.value()) + ", "
+            llvmir += CTypeToLLVMType(self.type()) + " " + register + "\n"
 
         return llvmir
 
