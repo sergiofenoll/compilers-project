@@ -6,7 +6,7 @@ compilationUnit:
 
 primaryExpression:
 	Identifier #identifier
-|	Constant #constant
+|	(ConstantInt|ConstantFloat|ConstantChar) #constant
 |	StringLiteral #stringLiteral
 |	'(' expression ')' #parenExpression
 ;
@@ -279,17 +279,11 @@ fragment CChar:
 	~('\'' | '\n' | '\\')
 |	EscapeSequence
 ;
-fragment ConstantInt: Sign? Digit+;
-fragment ConstantFloat:
+ConstantInt: Sign? Digit+;
+ConstantFloat:
 	Digit* '.' Digit+ ExponentPart?
 |	Digit+ '.' ExponentPart?;
-fragment ConstantChar: '\'' CChar '\'';
-
-Constant:
-	ConstantInt
-|	ConstantFloat
-|	ConstantChar
-;
+ConstantChar: '\'' CChar '\'';
 
 fragment SChar:
 	~('"' | '\n' | '\\')

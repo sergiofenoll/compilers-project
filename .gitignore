@@ -18,6 +18,7 @@ build.sh
 *.jar
 *.dot
 *.png
+*.ll
 
 # Antlr files
 C.interp

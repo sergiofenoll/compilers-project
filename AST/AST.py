@@ -57,13 +57,19 @@ class ASTBaseNode:
 
         output.write("}")
 
+    def type(self):
+        return None
+
+    def value(self):
+        return None
+
 
 class ASTIdentifierNode(ASTBaseNode):
-    def __init__(self, value, c_idx = None):
+    def __init__(self, value):
         super(ASTIdentifierNode, self).__init__()
-        self.value = value
+        self.identifier = value
         self.name = "Identifier:" + str(value)
-        self.c_idx = c_idx
+
 
     def _generateLLVMIR(self):
         # Returns registername
@@ -71,7 +77,7 @@ class ASTIdentifierNode(ASTBaseNode):
         llvmir = ""
         if not isinstance(self.parent, ASTParameterTypeList):
             scope_prefix = "@" if self.scope.parent is None else "%"
-            llvmir = scope_prefix + self.value
+            llvmir = scope_prefix + self.identifier
 
         return llvmir
 
@@ -79,7 +85,7 @@ class ASTIdentifierNode(ASTBaseNode):
         # If value known from Symbol Table, remove declaration & swap uses with constant value
 
         # Lookup identifier in accessible scopes
-        STEntry = self.scope.lookup(self.value)
+        STEntry = self.scope.lookup(self.identifier)
         if STEntry and STEntry.value:
             if isinstance(self.parent, ASTAssignmentNode) and self.parent.left() == self:
                 return
@@ -88,35 +94,65 @@ class ASTIdentifierNode(ASTBaseNode):
                 pass
             else:
                 # Replace with constant node
-                new_node = ASTConstantNode(STEntry.value)
+                new_node = ASTConstantNode(STEntry.value, STEntry.type_desc)
                 new_node.parent = self.parent
                 new_node.scope = self.scope
-                self.parent.children.pop(self.c_idx)
-                self.parent.children.insert(self.c_idx, new_node)
+
+                current_idx = self.parent.children.index(self)
+                self.parent.children.pop(current_idx)
+                self.parent.children.insert(current_idx, new_node)
                 self = new_node
 
+    def type(self):
+        try:
+            return self.scope.lookup(self.identifier).type_desc
+        except AttributeError:
+            return None
+
+    def value(self):
+        try:
+            return self.scope.lookup(self.identifier).value
+        except AttributeError:
+            return None
 
 
 class ASTConstantNode(ASTBaseNode):
-    def __init__(self, value):
+    def __init__(self, value, type_specifier):
         super(ASTConstantNode, self).__init__()
-        self.value = value
+        self.__value = value
+        self.type_specifier = type_specifier
         self.name = "Constant:" + str(value)
+
+    def type(self):
+        return self.type_specifier
+
+    def value(self):
+        return self.__value
 
 
 class ASTStringLiteralNode(ASTBaseNode):
     def __init__(self, value):
         super(ASTStringLiteralNode, self).__init__()
-        self.value = value
-        self.name = "String literal:" + str(value)
+        self.__value = value
+        self.name = "String literal:" + str(value.replace('"', '\\"'))
+
+    def type(self):
+        return "char*"
+
+    def value(self):
+        return self.__value
 
 
 class ASTUnaryExpressionNode(ASTBaseNode):
     def __init__(self):
         super(ASTUnaryExpressionNode, self).__init__()
+        self.value = None
 
     def identifier(self):
         return self.children[0]
+
+    def type(self):
+        return self.identifier().type()
 
 
 class ASTArrayAccessNode(ASTUnaryExpressionNode):
@@ -166,11 +202,32 @@ class ASTUnaryPlusNode(ASTUnaryExpressionNode):
         super(ASTUnaryPlusNode, self).__init__()
         self.name = "+"
 
+    def value(self):
+        return self.identifier().value()
+
 
 class ASTUnaryMinusNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTUnaryMinusNode, self).__init__()
         self.name = "-"
+
+    def type(self):
+        if "*" in self.identifier().type():
+            # TODO: Error, cannot apply unary minus operator to pointer
+            print("Error: cannot apply unary minus operator to pointer")
+            exit()
+        else:
+            return self.identifier().type()
+
+    def value(self):
+        id_value = self.identifier().value()
+        if id_value:
+            type_desc = self.type()
+            if type_desc == "char":
+                return chr(-ord(id_value) % 256)
+            else:
+                return -id_value
+        return None
 
 
 class ASTLogicalNotNode(ASTUnaryExpressionNode):
@@ -178,15 +235,58 @@ class ASTLogicalNotNode(ASTUnaryExpressionNode):
         super(ASTLogicalNotNode, self).__init__()
         self.name = "!"
 
+    def value(self):
+        id_value = self.identifier().value()
+        if id_value:
+            type_desc = self.type()
+            if type_desc == "char":
+                return chr(0) if ord(id_value) != 0 else chr(1)
+            elif type_desc == "float":
+                return 0.0 if id_value != 0.0 else 1
+            else:
+                return 0 if id_value != 0 else 1
+        return None
+
 
 class ASTIndirection(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTIndirection, self).__init__()
 
+    def type(self):
+        if "*" not in self.identifier().type():
+            # TODO: Error, cannot apply indirection operator to not pointer
+            print("Error: cannot apply indirection operator to not pointer")
+            exit()
+        else:
+            return self.identifier().type()[:-1]
+
 
 class ASTCastNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTCastNode, self).__init__()
+
+    def identifier(self):
+        return self.children[1]
+
+    def type(self):
+        if "*" in self.children[0].type():
+            # TODO: Error, cannot cast to pointer type
+            print("ERROR: cannot cast to pointer type")
+            exit()
+        else:
+            return self.children[0].type()
+
+    def value(self):
+        id_value = self.identifier().value()
+        if id_value:
+            type_desc = self.type()
+            if type_desc == "char":
+                return chr(ord(id_value) % 256)
+            elif type_desc == "float":
+                return float(id_value)
+            else:
+                return int(id_value)
+        return None
 
 
 class ASTBinaryExpressionNode(ASTBaseNode):
@@ -200,11 +300,27 @@ class ASTBinaryExpressionNode(ASTBaseNode):
     def right(self):
         return self.children[1]
 
+    def type(self):
+        lhs_type = self.left().type()
+        rhs_type = self.right().type()
+        if lhs_type == rhs_type:
+            return lhs_type
+        elif lhs_type == 'float' or rhs_type == 'float':
+            return 'float'
+        elif lhs_type == 'int' or rhs_type == 'int':
+            return 'int'
+
 
 class ASTAssignmentNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTAssignmentNode, self).__init__()
         self.name = "="
+
+    def type(self):
+        return self.left().type()
+
+    def value(self):
+        return self.right().value()
 
 
 class ASTMultiplicationNode(ASTBinaryExpressionNode):
@@ -212,21 +328,24 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
         super(ASTMultiplicationNode, self).__init__(c_idx)
         self.name = "*"
 
+    def value(self):
+        if self.left().value() and self.right().value():
+            return self.left().value() * self.right().value()
+
     def optimise(self):
         # Handles multiplication by 1 and 0
 
-        rhs = int(self.right().value) if isinstance(self.right(), ASTConstantNode) else None
-        lhs = int(self.left().value) if isinstance(self.left(), ASTConstantNode) else None
+        rhs = int(self.right().value()) if isinstance(self.right(), ASTConstantNode) else None
+        lhs = int(self.left().value()) if isinstance(self.left(), ASTConstantNode) else None
 
         if rhs == 0 or lhs == 0:
             # Evaluates to 0
-            new_node = ASTConstantNode(0)
+            new_node = ASTConstantNode(0, "int")
             new_node.parent = self.parent
             new_node.scope = self.scope
             self.parent.children.pop(self.c_idx)
             self.parent.children.insert(self.c_idx, new_node)
             self = new_node
-
 
         elif rhs == 1:
             # Evaluates to lhs
@@ -355,8 +474,8 @@ class ASTDeclarationNode(ASTBaseNode):
             if isinstance(value_node, ASTConstantNode):
                 llvmir += "\n"
                 llvmir += "store "
-                llvmir += CTypeToLLVMType(value_node.type()) + " " + value_node + ", "
-                llvmir += CTypeToLLVMType(self.type()) + " " + register
+                llvmir += CTypeToLLVMType(value_node.type()) + "* " + str(value_node.value()) + ", "
+                llvmir += CTypeToLLVMType(self.type()) + " " + register + "\n"
 
         return llvmir
 
@@ -364,11 +483,13 @@ class ASTDeclarationNode(ASTBaseNode):
         # Prune declarations for unused variables
         STEntry = self.scope.lookup(self.identifier().value)
         if STEntry and not STEntry.used:
-            self.parent.children.pop(self.c_idx)
+            # self.parent.children.pop(self.c_idx)
+            # NOTE: Above doesn't work when previous children have been popped because c_idx is no longer correct
+            self.parent.children.pop(self.parent.children.index(self))
             self = None
 
     def type(self):
-        return self.children[0]
+        return self.children[0].type()
 
     def identifier(self):
         return self.children[1]
@@ -455,7 +576,6 @@ class ASTReturnNode(ASTBaseNode):
             self.parent.children = self.parent.children[:self.c_idx+1]
 
 
-
 class ASTCompoundStmtNode(ASTBaseNode):
     def __init__(self):
         super(ASTCompoundStmtNode, self).__init__()
@@ -514,6 +634,7 @@ class ASTParameterTypeList(ASTBaseNode):
         llvmir += ")"
         return llvmir
 
+
 class ASTTypeSpecifierNode(ASTBaseNode):
     def __init__(self, tspec):
         super(ASTTypeSpecifierNode, self).__init__()
@@ -533,6 +654,10 @@ class ASTTypeSpecifierNode(ASTBaseNode):
             llvmir = "void"
                 
         return llvmir
+
+    def type(self):
+        return self.tspec
+
 
 class ASTExprListNode(ASTBaseNode):
     def __init__(self, name):

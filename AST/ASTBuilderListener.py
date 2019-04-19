@@ -36,13 +36,31 @@ class ASTBuilder(CListener):
         self.current_node = ast
 
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
-        node = AST.ASTIdentifierNode(str(ctx.Identifier()), c_idx = len(self.current_node.children))
+        identifier = str(ctx.Identifier())
+        node = AST.ASTIdentifierNode(identifier)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
+        STEntry = self.current_node.scope.lookup(identifier)
+
+        if STEntry:
+            STEntry.used = True
+        else:
+            print("Using undeclared variable")
+            exit()
+
     def enterConstant(self, ctx:CParser.ConstantContext):
-        node = AST.ASTConstantNode(str(ctx.Constant()))
+        if ctx.ConstantChar():
+            constant = str(ctx.ConstantChar())
+            type_specifier = "char"
+        elif ctx.ConstantFloat():
+            constant = float(str(ctx.ConstantFloat()))
+            type_specifier = "float"
+        else:
+            constant = int(str(ctx.ConstantInt()))
+            type_specifier = "int"
+        node = AST.ASTConstantNode(constant, type_specifier)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -161,6 +179,7 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitCast(self, ctx:CParser.CastContext):
+        print(self.current_node.identifier().identifier)
         self.current_node = self.current_node.parent
 
     def enterAssignment(self, ctx:CParser.AssignmentContext):
@@ -331,7 +350,7 @@ class ASTBuilder(CListener):
 
     def enterDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
         if ctx.Identifier():
-            node = AST.ASTIdentifierNode(str(ctx.Identifier()), c_idx = len(self.current_node.children))
+            node = AST.ASTIdentifierNode(str(ctx.Identifier()))
             node.parent = self.current_node
             node.scope = self.current_node.scope
             self.current_node.children.append(node)
@@ -446,7 +465,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterDeclaration(self, ctx:CParser.DeclarationContext):
-        node = AST.ASTDeclarationNode(c_idx = len(self.current_node.children))
+        node = AST.ASTDeclarationNode(c_idx=len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -454,8 +473,8 @@ class ASTBuilder(CListener):
 
     def exitDeclaration(self, ctx:CParser.DeclarationContext):
         # Add identifier to symbol table
-        type_spec = self.current_node.type().tspec
-        identifier = self.current_node.identifier().value
+        type_spec = self.current_node.type()
+        identifier = self.current_node.identifier().identifier
 
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
@@ -479,7 +498,7 @@ class ASTBuilder(CListener):
     def exitFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
         # Add identifier to symbol table
         type_spec = self.current_node.returnType().tspec
-        identifier = self.current_node.identifier().value
+        identifier = self.current_node.identifier().identifier
         args = []
         for arg in self.current_node.arguments():
             try:

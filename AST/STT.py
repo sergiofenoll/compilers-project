@@ -12,6 +12,21 @@ class STTNode:
 
         # Maintenance variable for dotfile generation
         self.__num = 0
+        self.__dot_header = """
+                digraph astgraph {
+                  node [shape=none, fontsize=12, fontname="Courier", height=.1];
+                  ranksep=.3;
+                  edge [arrowsize=.5]
+                """
+        self.__table_header = """
+                <tr>
+                    <td border="1">Identifier</td>
+                    <td border="1">Type</td>
+                    <td border="1">Arguments</td>
+                    <td border="1">Value</td>
+                    <td border="1">Used</td>
+                </tr>
+                """
 
     def lookup(self, name):
         # Searches for name in scope & ancestors of scope. If found, return entry. If not found, return None
@@ -20,39 +35,27 @@ class STTNode:
             return self.table[name]
         else:
             scope = self
-            while scope.parent is not None:
+            while scope.parent:
                 scope = scope.parent
                 if name in scope.table:
                     return scope.table[name]
         return None
 
     def generateDot(self, output):
-        output.write("""\
-        digraph astgraph {
-          node [shape=none, fontsize=12, fontname="Courier", height=.1];
-          ranksep=.3;
-          edge [arrowsize=.5]
-        """)
+        output.write(self.__dot_header)
         ncount = 1
         queue = list()
         queue.append(self)
 
         entries = "\n".join(entry.dotRepresentation() for entry in self.table.values())
-        header = '''
-        <tr>
-            <td border="1">Identifier</td>
-            <td border="1">Type</td>
-            <td border="1">Arguments</td>
-        </tr>''' if len(entries) else ''
 
-        table = f'''  node{ncount}
-        [shape=none
-        label=<<table border="0" cellspacing="0">
-            <tr><td border="1" colspan="3">{self.name}</td></tr>
-            {header}
+        table = f"""
+        node{ncount}
+        [label=<<table border="0" cellspacing="0">
+            <tr><td border="1" colspan="5">{self.name}</td></tr>
+            {self.__table_header if len(entries) else ''}
             {entries}
-        </table>>
-        ]'''
+        </table>>]"""
         output.write(table)
         self.__num = ncount
         ncount += 1
@@ -60,21 +63,13 @@ class STTNode:
             node = queue.pop(0)
             for child in node.children:
                 entries = "\n".join(entry.dotRepresentation() for entry in child.table.values())
-                header = '''
-                <tr>
-                    <td border="1">Identifier</td>
-                    <td border="1">Type</td>
-                    <td border="1">Arguments</td>
-                </tr>''' if len(entries) else ''
-
-                table = f'''  node{ncount}
-                        [shape=none
-                        label=<<table border="0" cellspacing="0">
-                            <tr><td border="1" colspan="3">{node.name}</td></tr>
-                            {header}
+                table = f"""
+                        node{ncount}
+                        [label=<<table border="0" cellspacing="0">
+                            <tr><td border="1" colspan="5">{node.name}</td></tr>
+                            {self.__table_header if len(entries) else ''}
                             {entries}
-                        </table>>
-                        ]'''
+                        </table>>]"""
                 output.write(table)
                 child.__num = ncount
                 ncount += 1
@@ -90,16 +85,17 @@ class STTEntry:
         self.type_desc = type_desc
         self.args = args or []
         self.value = value
-        self.used = True
+        self.used = used
 
     def dotRepresentation(self):
-        return f'''
+        return f"""
         <tr>
             <td border="1">{self.identifier}</td>
             <td border="1">{self.type_desc}</td>
             <td border="1">{", ".join(arg for arg in self.args)}</td>
-        </tr>'''
+            <td border="1">{self.value or ''}</td>
+            <td border="1">{self.used}</td>
+        </tr>"""
 
     def __repr__(self):
-        r = "{} | {} | {} | {}".format(self.identifier, self.type_desc, self.args, self.value)
-        return r
+        return "{} | {} | {} | {}".format(self.identifier, self.type_desc, self.args, self.value)

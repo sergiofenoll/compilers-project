@@ -1,7 +1,6 @@
 import sys
 import AST.AST as AST
 import AST.STT as STT
-import textwrap
 from AST.ASTBuilderListener import ASTBuilder
 from antlr4 import *
 from parser.CLexer import CLexer
@@ -54,6 +53,17 @@ def generateLLVMIR(ast, filename = None):
                 else:
                     break
 
+
+def type_checking(ast):
+    stack = list()
+    stack.append(ast)
+
+    while stack:
+        node = stack.pop()
+        for child in node.children:
+            stack.append(child)
+
+
 def main(argv):
     file_input = FileStream(argv[1])
     lexer = CLexer(file_input)
@@ -68,6 +78,8 @@ def main(argv):
     builder = ASTBuilder(ast)
     walker = ParseTreeWalker()
     walker.walk(builder, tree)
+
+    type_checking(ast)
     optimise_ast(ast)
     generateLLVMIR(ast)
 
