@@ -30,6 +30,30 @@ def optimise_ast(ast):
         node = stack.pop()
         node.optimise()
 
+
+def generateLLVMIR(ast, filename = None):
+
+    filename = filename or "LLVMIR.ll"
+    with open(filename, "w") as outf:
+        stack = list()
+        stack.append(ast)
+        parentstack = list()
+        while stack:
+            node = stack.pop()
+            prefix = node.generateLLVMIRPrefix()
+            outf.write(prefix)
+            if len(node.children):
+                parentstack.append(node)
+                for child in node.children[::-1]:
+                    stack.append(child)
+            while len(parentstack):
+                if parentstack[-1].children[-1] == node:
+                    node = parentstack.pop()
+                    postfix = node.generateLLVMIRPostfix()
+                    outf.write(postfix)
+                else:
+                    break
+
 def main(argv):
     file_input = FileStream(argv[1])
     lexer = CLexer(file_input)
@@ -45,6 +69,7 @@ def main(argv):
     walker = ParseTreeWalker()
     walker.walk(builder, tree)
     optimise_ast(ast)
+    generateLLVMIR(ast)
 
     ast.generateDot(open("ast.dot", "w"))
     stt.generateDot(open("stt.dot", "w"))

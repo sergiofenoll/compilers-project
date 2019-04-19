@@ -364,7 +364,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterParameterTypeList(self, ctx:CParser.ParameterTypeListContext):
-        node = AST.ASTBaseNode("Arguments")
+        node = AST.ASTParameterTypeList()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)

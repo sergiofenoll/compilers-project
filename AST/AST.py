@@ -1,3 +1,13 @@
+def CTypeToLLVMType(CType):
+
+    if CType == "int":
+        return "i32"
+    elif CType == "char":
+        return "i8"
+    else:
+        return CType
+
+
 class ASTBaseNode:
     def __init__(self, name=None, scope=None):
         self.parent = None
@@ -8,11 +18,17 @@ class ASTBaseNode:
         # Maintenance variable for dotfile generation
         self.__num = 0
 
-    def generateLLVMIR(self):
-        pass
+    def generateLLVMIRPrefix(self):
+        return ""
+
+    def generateLLVMIRPostfix(self):
+        return ""
+
+    def _generateLLVMIR(self):
+        return ""
 
     def generateMIPS(self):
-        pass
+        return ""
 
     def optimise(self):
         pass
@@ -48,7 +64,17 @@ class ASTIdentifierNode(ASTBaseNode):
         self.value = value
         self.name = "Identifier:" + str(value)
         self.c_idx = c_idx
-    
+
+    def _generateLLVMIR(self):
+        # Returns registername
+
+        llvmir = ""
+        if not isinstance(self.parent, ASTParameterTypeList):
+            scope_prefix = "@" if self.scope.parent is None else "%"
+            llvmir = scope_prefix + self.value
+
+        return llvmir
+
     def optimise(self):
         # If value known from Symbol Table, remove declaration & swap uses with constant value
 
@@ -317,6 +343,23 @@ class ASTDeclarationNode(ASTBaseNode):
         self.name = "Decl"
         self.c_idx = c_idx
 
+    def generateLLVMIRPrefix(self):
+
+        # Allocate new register
+        register = self.children[1]._generateLLVMIR()
+        llvmir = register + " = allocate " + self.children[0]._generateLLVMIR()  # Identifier
+
+        # Evaluate definition
+        if len(self.children) > 2:
+            value_node = self.children[2]
+            if isinstance(value_node, ASTConstantNode):
+                llvmir += "\n"
+                llvmir += "store "
+                llvmir += CTypeToLLVMType(value_node.type()) + " " + value_node + ", "
+                llvmir += CTypeToLLVMType(self.type()) + " " + register
+
+        return llvmir
+
     def optimise(self):
         # Prune declarations for unused variables
         STEntry = self.scope.lookup(self.identifier().value)
@@ -416,13 +459,31 @@ class ASTReturnNode(ASTBaseNode):
 class ASTCompoundStmtNode(ASTBaseNode):
     def __init__(self):
         super(ASTCompoundStmtNode, self).__init__()
-        self.name = "{}"
+        self.name = "CompoundStmt"
+
+    def generateLLVMIRPrefix(self):
+
+        llvmir = "{\n"
+        return llvmir
+    
+    def generateLLVMIRPostfix(self):
+
+        llvmir = "\n}\n"
+        return llvmir
 
 
 class ASTFunctionDefinitionNode(ASTBaseNode):
     def __init__(self):
         super(ASTFunctionDefinitionNode, self).__init__()
         self.name = "FuncDef"
+
+    def generateLLVMIRPrefix(self):
+
+        llvmir = "define "
+        for child in self.children:
+            llvmir += child._generateLLVMIR() + " "
+
+        return llvmir
 
     def returnType(self):
         return self.children[0]
@@ -437,12 +498,41 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
             return self.children[2].children
 
 
+class ASTParameterTypeList(ASTBaseNode):
+    def __init__(self):
+        super(ASTParameterTypeList, self).__init__()
+        self.name = "ParamList"
+
+    def _generateLLVMIR(self):
+
+        llvmir = "("
+
+        for type_child in self.children[::2]:
+            llvmir += type_child._generateLLVMIR() + ", "
+        
+        llvmir = llvmir[:-2]
+        llvmir += ")"
+        return llvmir
+
 class ASTTypeSpecifierNode(ASTBaseNode):
     def __init__(self, tspec):
         super(ASTTypeSpecifierNode, self).__init__()
         self.tspec = tspec
         self.name = "Type:" + str(tspec)
 
+    def _generateLLVMIR(self):
+
+        llvmir = ""
+        if self.tspec == "int":
+            llvmir = "i32"
+        elif self.tspec == "float":
+            llvmir = "float"
+        elif self.tspec == "char":
+            llvmir = "i8"
+        elif self.tspec == "void":
+            llvmir = "void"
+                
+        return llvmir
 
 class ASTExprListNode(ASTBaseNode):
     def __init__(self, name):
