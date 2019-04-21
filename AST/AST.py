@@ -359,10 +359,10 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         identifier_name = self.left()._generateLLVMIR()
         llvm_type = CTypeToLLVMType(self.type())
         if isinstance(self.right(), ASTConstantNode):
-            return f"store {llvm_type} {self.right().value()}, {llvm_type}* {identifier_name}"
+            return f"store {llvm_type} {self.right().value()}, {llvm_type}* {identifier_name}\n"
         else:
-            last_temp_register = self.scope.register
-            return f"store {llvm_type} %{last_temp_register}, {llvm_type}* {identifier_name}"
+            last_temp_register = self.scope.temp_register
+            return f"store {llvm_type} %{last_temp_register}, {llvm_type}* {identifier_name}\n"
 
 
 class ASTMultiplicationNode(ASTBinaryExpressionNode):
@@ -567,7 +567,7 @@ class ASTDeclarationNode(ASTBaseNode):
             else:
                 value = "%" + str(last_temp_register)
             # Store value (expression or constant) in register
-            llvm_ir += f"store {llvm_type}* {value}, {llvm_type} {identifier_name}\n"
+            llvm_ir += f"store {llvm_type} {value}, {llvm_type}* {identifier_name}\n"
 
         return llvm_ir
 
