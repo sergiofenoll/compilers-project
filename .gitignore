@@ -20,6 +20,8 @@ build.sh
 *.png
 *.ll
 
+README.html
+
 # Antlr files
 C.interp
 C.tokens
