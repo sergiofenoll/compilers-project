@@ -61,6 +61,40 @@ def type_checking(ast):
             stack.append(child)
 
 
+def generate_test_output(test_dir = "./testfiles/happy-day", output_dir = './testfiles/output'):
+    # Compiles all files and generates output
+    import os
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for filename in os.listdir(test_dir):
+        output_prefix = os.path.join(output_dir, filename)
+        fpath = os.path.join(test_dir, filename)
+        print(f"[TESTS] Generating output for {fpath}")
+        
+        # Generate parse tree, AST, STT and LLVM IR
+        file_input = FileStream(fpath)
+        lexer = CLexer(file_input)
+        stream = CommonTokenStream(lexer)
+        parser = CParser(stream)
+
+        tree = parser.compilationUnit()
+
+        stt = STT.STTNode()
+        ast = AST.ASTBaseNode("Root", stt)
+
+        builder = ASTBuilder(ast)
+        walker = ParseTreeWalker()
+        walker.walk(builder, tree)
+
+        type_checking(ast)
+        optimise_ast(ast)
+        ast.generateDot(open(f"{output_prefix}-ast.dot", "w"))
+        stt.generateDot(open(f"{output_prefix}-stt.dot", "w"))
+        generate_llvm_ir(ast, open(f"{output_prefix}-llvm_ir.ll", "w"))
+
+
 def main(argv):
     file_input = FileStream(argv[1])
     lexer = CLexer(file_input)
@@ -82,7 +116,7 @@ def main(argv):
     stt.generateDot(open("stt.dot", "w"))
     generate_llvm_ir(ast, open("ir.ll", "w"))
 
-    print("")
+    generate_test_output()
 
 
 if __name__ == '__main__':

@@ -22,3 +22,9 @@ C(-ish) compiler made for a Compilers course
     - No code after return
     - No code after break/continue
     - No code for unused variables
+    
+## TODO:
+- Function calls
+- Import, printf & scanf
+- Pointers
+- While

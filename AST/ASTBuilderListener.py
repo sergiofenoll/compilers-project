@@ -236,6 +236,7 @@ class ASTBuilder(CListener):
     def enterSubtraction(self, ctx:CParser.SubtractionContext):
         node = AST.ASTSubtractionNode()
         node.parent = self.current_node
+        node.scope = self.current_node.scope
         self.current_node.children.append(node)
         self.current_node = node
 
