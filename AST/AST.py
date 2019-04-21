@@ -7,6 +7,10 @@ def CTypeToLLVMType(c_type):
         ir_type = c_type + "*" * c_type.count("*")
     return ir_type
 
+def format_float(raw_float):
+    # Takes float in "1.23" format and returns it in "0.123e+1"
+    return float.hex(float(raw_float))
+
 
 def generate_llvm_expr(node, op):
     llvmir = ""
@@ -581,6 +585,11 @@ class ASTDeclarationNode(ASTBaseNode):
         register = self.identifier()._generateLLVMIR()
         type_node = self.children[0]
         llvm_type = type_node._generateLLVMIR()
+
+        if self.scope.parent is None:
+            # Global register
+            return f"{register} = global {llvm_type}"
+
         return f"{register} = alloca {llvm_type}\n"
 
     def generateLLVMIRPostfix(self):
@@ -623,6 +632,9 @@ class ASTDeclarationNode(ASTBaseNode):
             value_node = self.children[2]
             if isinstance(value_node, ASTConstantNode):
                 value = value_node.value()
+                if llvm_type == "float":
+                    # Write value in scientific notation
+                    value = format_float(value)
             else:
                 value = "%" + str(last_temp_register)
         else:
@@ -632,7 +644,11 @@ class ASTDeclarationNode(ASTBaseNode):
             elif llvm_type == "float":
                 value = "0.000000e+00"
         # Store value (expression or constant) in register
-        llvm_ir += f"store {llvm_type} {value}, {llvm_type}* {identifier_name}\n"
+        if self.scope.parent is not None:
+            llvm_ir += f"store {llvm_type} {value}, {llvm_type}* {identifier_name}\n"
+        else:
+            # Global declaration
+            llvm_ir += f" {value}\n"
                 
 
         return llvm_ir
@@ -846,7 +862,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
                 self.scope.lookup(ident).register = f"%{self.scope.temp_register}"
                 self.scope.temp_register += 1
         else:
-            self.scope.temp_register += 1
+            self.scope.temp_register += 1 # Don't start at %0
             arg_list = "()"
             arg_decl = ""
 
