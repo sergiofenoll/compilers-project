@@ -625,10 +625,11 @@ class ASTIfStmtNode(ASTBaseNode):
         self.cond_register = None
         self.true_label = None
         self.false_label = None
+        self.finish_label = None
 
-    def generateLLVMIRPrefix(self):
+    def generateLLVMIRPostfix(self):
 
-        llvmir = ";If Statement\n"
+        llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
 
@@ -638,16 +639,13 @@ class ASTIfConditionNode(ASTBaseNode):
         self.name = "IfCond"
 
     def generateLLVMIRPostfix(self):
-        cond_register = f"%{self.scope.temp_register}"
-        self.scope.temp_register += 1
-        true_label = f"%{self.scope.temp_register}"
-        self.scope.temp_register += 1
-        false_label = f"%{self.scope.temp_register}"
-        self.parent.cond_register = cond_register
-        self.parent.true_label = true_label
-        self.parent.false_label = false_label
+        cond_register = self.scope.temp_register
+        self.parent.cond_register = f"%{cond_register}"
+        self.parent.true_label = f"IfTrue{cond_register}"
+        self.parent.false_label = f"IfFalse{cond_register}" 
+        self.parent.finish_label = f"IfEnd{cond_register}"
 
-        llvmir = f"br i1 {cond_register}, label {true_label}, label {false_label}\n"
+        llvmir = f"br i1 {self.parent.cond_register}, label %{self.parent.true_label}, label %{self.parent.false_label}\n"
         return llvmir
 
 
@@ -656,11 +654,31 @@ class ASTIfTrueNode(ASTBaseNode):
         super(ASTIfTrueNode, self).__init__()
         self.name = "IfTrue"
 
+    def generateLLVMIRPrefix(self):
+
+        llvmir = f"\n{self.parent.true_label}:\n"
+        return llvmir
+
+    def generateLLVMIRPostfix(self):
+
+        llvmir = f"br label %{self.parent.finish_label}\n"
+        return llvmir
+
 
 class ASTIfFalseNode(ASTBaseNode):
     def __init__(self):
         super(ASTIfFalseNode, self).__init__()
         self.name = "IfFalse"
+
+    def generateLLVMIRPrefix(self):
+
+        llvmir = f"\n{self.parent.false_label}:\n"
+        return llvmir
+
+    def generateLLVMIRPostfix(self):
+
+        llvmir = f"br label %{self.parent.finish_label}\n"
+        return llvmir
 
 
 class ASTSwitchStmtNode(ASTBaseNode):
