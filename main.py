@@ -30,28 +30,25 @@ def optimise_ast(ast):
         node.optimise()
 
 
-def generateLLVMIR(ast, filename = None):
-
-    filename = filename or "LLVMIR.ll"
-    with open(filename, "w") as outf:
-        stack = list()
-        stack.append(ast)
-        parentstack = list()
-        while stack:
-            node = stack.pop()
-            prefix = node.generateLLVMIRPrefix()
-            outf.write(prefix)
-            if len(node.children):
-                parentstack.append(node)
-                for child in node.children[::-1]:
-                    stack.append(child)
-            while len(parentstack):
-                if parentstack[-1].children[-1] == node:
-                    node = parentstack.pop()
-                    postfix = node.generateLLVMIRPostfix()
-                    outf.write(postfix)
-                else:
-                    break
+def generate_llvm_ir(ast, output):
+    stack = list()
+    parent_stack = list()
+    stack.append(ast)
+    while stack:
+        node = stack.pop()
+        prefix = node.generateLLVMIRPrefix()
+        output.write(prefix)
+        parent_stack.append(node)
+        for child in node.children[::-1]:
+            stack.append(child)
+        while parent_stack:
+            last_parent = parent_stack[-1]
+            if not last_parent.children or last_parent.children[-1] == node:
+                node = parent_stack.pop()
+                postfix = node.generateLLVMIRPostfix()
+                output.write(postfix)
+            else:
+                break
 
 
 def type_checking(ast):
@@ -81,7 +78,7 @@ def main(argv):
 
     type_checking(ast)
     optimise_ast(ast)
-    generateLLVMIR(ast)
+    generate_llvm_ir(ast, open("ir.ll", "w"))
 
     ast.generateDot(open("ast.dot", "w"))
     stt.generateDot(open("stt.dot", "w"))

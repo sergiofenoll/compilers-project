@@ -9,6 +9,8 @@ class STTNode:
         self.children = []
         self.table = dict()
         self.name = "Symbol Table"
+        self.depth = 0
+        self.temp_register = 0
 
         # Maintenance variable for dotfile generation
         self.__num = 0
@@ -39,6 +41,17 @@ class STTNode:
                 scope = scope.parent
                 if name in scope.table:
                     return scope.table[name]
+        return None
+
+    def scope_level(self, name):
+        if name in self.table:
+            return self.depth
+        else:
+            scope = self
+            while scope.parent:
+                scope = scope.parent
+                if name in scope.table:
+                    return scope.depth
         return None
 
     def generateDot(self, output):
@@ -86,6 +99,10 @@ class STTEntry:
         self.args = args or []
         self.value = value
         self.used = used
+
+        # LLVM register maintenance
+        self.register = None
+        self.register_num = 0
 
     def dotRepresentation(self):
         return f"""

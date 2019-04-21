@@ -24,6 +24,7 @@ def enter_decorate_scope(method):
 
         scope = STT.STTNode()
         scope.parent = self.current_node.scope
+        scope.depth = scope.parent.depth + 1
         self.current_node.scope.children.append(scope)
 
         node.scope = scope
@@ -47,7 +48,7 @@ class ASTBuilder(CListener):
         if STEntry:
             STEntry.used = True
         else:
-            print("Using undeclared variable")
+            print(f"Using undeclared variable {identifier}")
             exit()
 
     def enterConstant(self, ctx:CParser.ConstantContext):
@@ -362,7 +363,7 @@ class ASTBuilder(CListener):
         pass
 
     def enterLabeledStatement(self, ctx:CParser.LabeledStatementContext):
-        label = ctx.Identifier() or ctx.Case() or ctx.Default()
+        label = ctx.Identifier()
         node = AST.ASTLabelStmtNode(label)
         node.parent = self.current_node
         node.scope = self.current_node.scope
@@ -390,6 +391,11 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitParameterTypeList(self, ctx:CParser.ParameterTypeListContext):
+        if isinstance(self.current_node.parent, AST.ASTFunctionDefinitionNode):
+            for type_node, identifier_node in zip(self.current_node.children[0::2], self.current_node.children[1::2]):
+                if identifier_node.identifier not in self.current_node.scope.table:
+                    self.current_node.scope.table[identifier_node.identifier] = STT.STTEntry(identifier_node.identifier, type_node.type())
+
         self.current_node = self.current_node.parent
 
     def enterIterationStatement(self, ctx:CParser.IterationStatementContext):
@@ -398,6 +404,7 @@ class ASTBuilder(CListener):
             node.parent = self.current_node
             scope = STT.STTNode()
             scope.parent = self.current_node.scope
+            scope.depth = scope.parent.depth + 1
             node.scope = scope
             self.current_node.scope.children.append(scope)
             self.current_node.children.append(node)
@@ -456,6 +463,7 @@ class ASTBuilder(CListener):
         else:
             scope = STT.STTNode()
             scope.parent = self.current_node.scope
+            scope.depth = scope.parent.depth + 1
             node.scope = scope
             self.current_node.scope.children.append(scope)
         self.current_node.children.append(node)
@@ -490,6 +498,7 @@ class ASTBuilder(CListener):
         node.parent = self.current_node
         scope = STT.STTNode()
         scope.parent = self.current_node.scope
+        scope.depth = scope.parent.depth + 1
         node.scope = scope
         self.current_node.scope.children.append(scope)
         self.current_node.children.append(node)
