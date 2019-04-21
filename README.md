@@ -51,6 +51,13 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
   - No code after return
   - No code after break/continue
 
+### Testfiles:
+
+- additiveOperationsTest, multiplicativeOperationsTest --> operations
+- declarationsTest, variableScope --> variables, scopes
+- ifElseTest --> if-else
+- full --> all of the implemented features
+
 ## Requirements & Build process
 
 Requirements:
