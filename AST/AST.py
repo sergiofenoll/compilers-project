@@ -27,7 +27,7 @@ def generate_llvm_expr(node, op):
         node.scope.temp_register += 1
         ID_register = node.scope.lookup(node.left().identifier).register
         lhs = f"%{node.scope.temp_register}"
-        llvmir += f"{node.scope.temp_register} = load {llvm_type}, {llvm_type}* {ID_register}\n"
+        llvmir += f"{lhs} = load {llvm_type}, {llvm_type}* {ID_register}\n"
 
     if isinstance(node.right(), ASTConstantNode):
         rhs = node.right().value()
@@ -36,7 +36,7 @@ def generate_llvm_expr(node, op):
         node.scope.temp_register += 1
         ID_register = node.scope.lookup(node.left().identifier).register
         rhs = f"%{node.scope.temp_register}"
-        llvmir += f"{node.scope.temp_register} = load {llvm_type}, {llvm_type}* {ID_register}\n"
+        llvmir += f"{rhs} = load {llvm_type}, {llvm_type}* {ID_register}\n"
 
     node.scope.temp_register += 1
     llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
