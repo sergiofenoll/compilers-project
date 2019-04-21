@@ -1,7 +1,7 @@
 int g = 1;
 
 float f() {
-    float r = 1.23;
+    float r = 1.25;
     return r;
 }
 

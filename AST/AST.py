@@ -8,8 +8,13 @@ def CTypeToLLVMType(c_type):
     return ir_type
 
 def format_float(raw_float):
-    # Takes float in "1.23" format and returns it in "0.123e+1"
-    return float.hex(float(raw_float))
+    # Adds 0 to float in order to ensure representability
+    # TODO: Fix this because it doesn't work
+    formatted = raw_float
+    if "." in raw_float:
+        formatted += "0"
+        print(formatted)
+    return formatted
 
 
 def generate_llvm_expr(node, op):
@@ -634,7 +639,7 @@ class ASTDeclarationNode(ASTBaseNode):
                 value = value_node.value()
                 if llvm_type == "float":
                     # Write value in scientific notation
-                    value = format_float(value)
+                    value = format_float(str(value))
             else:
                 value = "%" + str(last_temp_register)
         else:
@@ -650,7 +655,6 @@ class ASTDeclarationNode(ASTBaseNode):
             # Global declaration
             llvm_ir += f" {value}\n"
                 
-
         return llvm_ir
 
     def optimise(self):
@@ -814,10 +818,10 @@ class ASTReturnNode(ASTBaseNode):
         elif isinstance(self.children[0], ASTIdentifierNode):
             ID_node = self.children[0]
             # Load dereferenced value into temp register
-            self.scope.temp_register += 1
             id_register = ID_node.scope.lookup(ID_node.identifier).register
             llvmir += f"%{self.scope.temp_register} = load {return_type}, {return_type}* {id_register}\n"
             return_value = f"%{self.scope.temp_register}"
+            self.scope.temp_register += 1
         else:
             return_value = self.children[0].scope.temp_register
         
