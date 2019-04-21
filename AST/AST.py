@@ -633,8 +633,6 @@ class ASTDeclarationNode(ASTBaseNode):
                 value = "0.000000e+00"
         # Store value (expression or constant) in register
         llvm_ir += f"store {llvm_type} {value}, {llvm_type}* {identifier_name}\n"
-                
-
         return llvm_ir
 
     def optimise(self):
@@ -798,10 +796,10 @@ class ASTReturnNode(ASTBaseNode):
         elif isinstance(self.children[0], ASTIdentifierNode):
             ID_node = self.children[0]
             # Load dereferenced value into temp register
-            self.scope.temp_register += 1
             id_register = ID_node.scope.lookup(ID_node.identifier).register
             llvmir += f"%{self.scope.temp_register} = load {return_type}, {return_type}* {id_register}\n"
             return_value = f"%{self.scope.temp_register}"
+            self.scope.temp_register += 1
         else:
             return_value = self.children[0].scope.temp_register
         
