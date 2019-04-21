@@ -1,7 +1,7 @@
 int main() {
     int a = 2;
     
-    if (a == 0) {
+    if (a != 3) {
         a = 1;
     } else {
         a = 0;
