@@ -264,8 +264,23 @@ class CVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CParser#directDeclarator.
-    def visitDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
+    # Visit a parse tree produced by CParser#arrayDeclarator.
+    def visitArrayDeclarator(self, ctx:CParser.ArrayDeclaratorContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#parenDeclarator.
+    def visitParenDeclarator(self, ctx:CParser.ParenDeclaratorContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#identifierDeclarator.
+    def visitIdentifierDeclarator(self, ctx:CParser.IdentifierDeclaratorContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CParser#functionDeclarator.
+    def visitFunctionDeclarator(self, ctx:CParser.FunctionDeclaratorContext):
         return self.visitChildren(ctx)
 
 

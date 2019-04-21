@@ -102,7 +102,8 @@ class STTEntry:
 
         # LLVM register maintenance
         self.register = None
-        self.register_num = 0
+        self.aux_register = None  # Used by arrays with expressions, required by LLVM
+        self.aux_type = None
 
     def dotRepresentation(self):
         return f"""

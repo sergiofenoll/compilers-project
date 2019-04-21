@@ -349,18 +349,39 @@ class ASTBuilder(CListener):
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
-    def enterDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
-        if ctx.Identifier():
-            node = AST.ASTIdentifierNode(str(ctx.Identifier()))
-            node.parent = self.current_node
-            node.scope = self.current_node.scope
-            self.current_node.children.append(node)
+    def enterIdentifierDeclarator(self, ctx:CParser.IdentifierDeclaratorContext):
+        node = AST.ASTIdentifierNode(str(ctx.Identifier()))
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+
+    def enterArrayDeclarator(self, ctx:CParser.ArrayDeclaratorContext):
+        parent_declaration = self.current_node
+        while parent_declaration is not None:
+            if isinstance(parent_declaration, AST.ASTDeclarationNode) or isinstance(parent_declaration, AST.ASTParameterTypeList):
+                break
+            parent_declaration = parent_declaration.parent
+
+        type_node = next(node for node in reversed(parent_declaration.children) if isinstance(node, AST.ASTTypeSpecifierNode))
+        type_node.tspec += "[]"
+        type_node.name += "[]"
+
+        node = AST.ASTArrayDeclarationNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitArrayDeclarator(self, ctx:CParser.ArrayDeclaratorContext):
+        self.current_node = self.current_node.parent
+
+    def enterFunctionDeclarator(self, ctx:CParser.FunctionDeclaratorContext):
+        pass
 
     def enterPointer(self, ctx:CParser.PointerContext):
-        pass
-
-    def exitPointer(self, ctx:CParser.PointerContext):
-        pass
+        type_node = self.current_node.children[-1]
+        type_node.tspec += "*"
+        type_node.name += "*"
 
     def enterLabeledStatement(self, ctx:CParser.LabeledStatementContext):
         label = ctx.Identifier()
@@ -394,7 +415,11 @@ class ASTBuilder(CListener):
         if isinstance(self.current_node.parent, AST.ASTFunctionDefinitionNode):
             for type_node, identifier_node in zip(self.current_node.children[0::2], self.current_node.children[1::2]):
                 if identifier_node.identifier not in self.current_node.scope.table:
-                    self.current_node.scope.table[identifier_node.identifier] = STT.STTEntry(identifier_node.identifier, type_node.type())
+                    if isinstance(identifier_node, AST.ASTIdentifierNode):
+                        iden = identifier_node.identifier
+                    else:
+                        iden = identifier_node.identifier().identifier
+                    self.current_node.scope.table[iden] = STT.STTEntry(iden, type_node.type())
 
         self.current_node = self.current_node.parent
 

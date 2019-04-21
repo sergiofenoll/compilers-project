@@ -1,11 +1,11 @@
-def CTypeToLLVMType(CType):
-
-    if CType == "int":
-        return "i32"
-    elif CType == "char":
-        return "i8"
+def CTypeToLLVMType(c_type):
+    if "int" in c_type:
+        ir_type = "i32" + "*" * c_type.count("*")
+    elif "char" in c_type:
+        ir_type ="i8" + "*" * c_type.count("*")
     else:
-        return CType
+        ir_type = c_type + "*" * c_type.count("*")
+    return ir_type
 
 
 def generate_llvm_expr(node, op):
@@ -16,7 +16,7 @@ def generate_llvm_expr(node, op):
         lhs = f"%{node.scope.temp_register}"
     elif not isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
         rhs = f"%{node.scope.temp_register}"
-    elif not isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
+    elif isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
         lhs = f"%{node.scope.temp_register - 1}"
         rhs = f"%{node.scope.temp_register}"
 
@@ -205,6 +205,21 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
 
     def indexer(self):
         return self.children[1]
+
+    def generateLLVMIRPostfix(self):
+        symbol_table_entry = self.scope.lookup(self.identifier().identifier)
+        array_member_type = CTypeToLLVMType(self.type())
+        array_type = self.scope.lookup(self.identifier().identifier).aux_type
+        array_register = symbol_table_entry.register
+        if isinstance(self.indexer(), ASTConstantNode):
+            idx = self.indexer().value()
+        else:
+            idx = self.scope.temp_register
+        llvm_ir = f"%{self.scope.temp_register} = getelementptr {array_type}, {array_type}* {array_register}, i32 0, i32 {idx}\n"
+        temp_reg = self.scope.temp_register
+        self.scope.temp_register += 1
+        llvm_ir += f"%{self.scope.temp_register} = load {array_member_type}, {array_member_type}* %{temp_reg}\n"
+        return llvm_ir
 
 
 class ASTFunctionCallNode(ASTUnaryExpressionNode):
@@ -560,12 +575,46 @@ class ASTDeclarationNode(ASTBaseNode):
         self.c_idx = c_idx
 
     def generateLLVMIRPrefix(self):
-
         # Allocate new register
-        register = self.children[1]._generateLLVMIR()
-        return f"{register} = alloca {self.children[0]._generateLLVMIR()}\n"  # Identifier
+        if isinstance(self.children[1], ASTArrayDeclarationNode):
+            return ""
+        register = self.identifier()._generateLLVMIR()
+        type_node = self.children[0]
+        llvm_type = type_node._generateLLVMIR()
+        return f"{register} = alloca {llvm_type}\n"
 
     def generateLLVMIRPostfix(self):
+        if isinstance(self.children[1], ASTArrayDeclarationNode):
+            register = self.identifier()._generateLLVMIR()
+            type_node = self.children[0]
+            llvm_type = type_node._generateLLVMIR()
+            member_type = llvm_type
+
+            array_len = 0
+            counter = 0
+            queue = list()
+            queue.append(self.children[1])
+            while isinstance(queue[-1], ASTArrayDeclarationNode):
+                if isinstance(queue[-1].children[1], ASTExpressionNode):
+                    llvm_type = f"[%{self.scope.temp_register - counter} x {llvm_type}]"
+                    self.scope.lookup(
+                        self.identifier().identifier).aux_register = f"%{self.scope.temp_register - counter}"
+                else:
+                    array_len = queue[-1].children[1].value()
+                    llvm_type = f"[{array_len} x {llvm_type}]"
+                counter += 1
+                queue.append(queue[-1].children[0])
+            self.scope.lookup(self.identifier().identifier).aux_type = llvm_type
+            llvm_ir = f"{register} = alloca {llvm_type}\n"
+
+            for idx, init in enumerate(self.children[2:]):
+                if idx >= array_len:
+                    break
+                # initialize array
+                llvm_ir += f"%{self.scope.temp_register} = getelementptr {llvm_type}, {llvm_type}* {register}, i32 0, i32 {idx}\n"
+                llvm_ir += f"store {member_type} {init.value()}, {member_type}* %{self.scope.temp_register}\n"
+                self.scope.temp_register += 1
+            return llvm_ir
         last_temp_register = self.scope.temp_register
         llvm_ir = ""
         identifier_name = self.identifier()._generateLLVMIR()
@@ -594,7 +643,10 @@ class ASTDeclarationNode(ASTBaseNode):
         return self.children[0].type()
 
     def identifier(self):
-        return self.children[1]
+        if isinstance(self.children[1], ASTIdentifierNode):
+            return self.children[1]
+        else:
+            return self.children[1].identifier()
 
     def initializer(self):
         try:
@@ -720,12 +772,17 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
             argc = len(args.children) // 2
             self.scope.temp_register = argc + 1
             for i, (type_node, identifier_node) in enumerate(zip(args.children[0::2], args.children[1::2])):
+                if isinstance(identifier_node, ASTIdentifierNode):
+                    ident = identifier_node.identifier
+                else:
+                    ident = identifier_node.identifier().identifier
                 type_spec = CTypeToLLVMType(type_node.type())
                 arg_decl += f"%{self.scope.temp_register} = alloca {type_spec}\n"
                 arg_decl += f"store {type_spec} %{i}, {type_spec}* %{self.scope.temp_register}\n"
-                self.scope.lookup(identifier_node.identifier).register = f"%{self.scope.temp_register}"
+                self.scope.lookup(ident).register = f"%{self.scope.temp_register}"
                 self.scope.temp_register += 1
         else:
+            self.scope.temp_register += 1
             arg_list = "()"
             arg_decl = ""
 
@@ -758,7 +815,7 @@ class ASTParameterTypeList(ASTBaseNode):
 
         for type_child in self.children[::2]:
             llvmir += type_child._generateLLVMIR() + ", "
-        
+
         llvmir = llvmir[:-2]
         llvmir += ")"
         return llvmir
@@ -771,18 +828,7 @@ class ASTTypeSpecifierNode(ASTBaseNode):
         self.name = "Type:" + str(tspec)
 
     def _generateLLVMIR(self):
-
-        llvmir = ""
-        if self.tspec == "int":
-            llvmir = "i32"
-        elif self.tspec == "float":
-            llvmir = "float"
-        elif self.tspec == "char":
-            llvmir = "i8"
-        elif self.tspec == "void":
-            llvmir = "void"
-                
-        return llvmir
+        return CTypeToLLVMType(self.tspec)
 
     def type(self):
         return self.tspec
@@ -791,3 +837,19 @@ class ASTTypeSpecifierNode(ASTBaseNode):
 class ASTExprListNode(ASTBaseNode):
     def __init__(self, name):
         super(ASTExprListNode, self).__init__(name)
+
+
+class ASTArrayDeclarationNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTArrayDeclarationNode, self).__init__()
+        self.name = "ArrayDecl"
+
+    def identifier(self):
+        if isinstance(self.children[0], ASTArrayDeclarationNode):
+            # We're working with a multidimensional array and we're not the first dimension
+            return self.children[0].identifier()
+        else:
+            # 1D array
+            return self.children[0]
+
+

@@ -3098,39 +3098,116 @@ class CParser ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def Identifier(self):
-            return self.getToken(CParser.Identifier, 0)
 
-        def declarator(self):
-            return self.getTypedRuleContext(CParser.DeclaratorContext,0)
+        def getRuleIndex(self):
+            return CParser.RULE_directDeclarator
 
+     
+        def copyFrom(self, ctx:ParserRuleContext):
+            super().copyFrom(ctx)
+
+
+    class ArrayDeclaratorContext(DirectDeclaratorContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.DirectDeclaratorContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
 
         def directDeclarator(self):
             return self.getTypedRuleContext(CParser.DirectDeclaratorContext,0)
-
 
         def assignmentExpression(self):
             return self.getTypedRuleContext(CParser.AssignmentExpressionContext,0)
 
 
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterArrayDeclarator" ):
+                listener.enterArrayDeclarator(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitArrayDeclarator" ):
+                listener.exitArrayDeclarator(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitArrayDeclarator" ):
+                return visitor.visitArrayDeclarator(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class ParenDeclaratorContext(DirectDeclaratorContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.DirectDeclaratorContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def declarator(self):
+            return self.getTypedRuleContext(CParser.DeclaratorContext,0)
+
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterParenDeclarator" ):
+                listener.enterParenDeclarator(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitParenDeclarator" ):
+                listener.exitParenDeclarator(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitParenDeclarator" ):
+                return visitor.visitParenDeclarator(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class IdentifierDeclaratorContext(DirectDeclaratorContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.DirectDeclaratorContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def Identifier(self):
+            return self.getToken(CParser.Identifier, 0)
+
+        def enterRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "enterIdentifierDeclarator" ):
+                listener.enterIdentifierDeclarator(self)
+
+        def exitRule(self, listener:ParseTreeListener):
+            if hasattr( listener, "exitIdentifierDeclarator" ):
+                listener.exitIdentifierDeclarator(self)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitIdentifierDeclarator" ):
+                return visitor.visitIdentifierDeclarator(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class FunctionDeclaratorContext(DirectDeclaratorContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CParser.DirectDeclaratorContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def directDeclarator(self):
+            return self.getTypedRuleContext(CParser.DirectDeclaratorContext,0)
+
         def parameterTypeList(self):
             return self.getTypedRuleContext(CParser.ParameterTypeListContext,0)
 
 
-        def getRuleIndex(self):
-            return CParser.RULE_directDeclarator
-
         def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterDirectDeclarator" ):
-                listener.enterDirectDeclarator(self)
+            if hasattr( listener, "enterFunctionDeclarator" ):
+                listener.enterFunctionDeclarator(self)
 
         def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitDirectDeclarator" ):
-                listener.exitDirectDeclarator(self)
+            if hasattr( listener, "exitFunctionDeclarator" ):
+                listener.exitFunctionDeclarator(self)
 
         def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitDirectDeclarator" ):
-                return visitor.visitDirectDeclarator(self)
+            if hasattr( visitor, "visitFunctionDeclarator" ):
+                return visitor.visitFunctionDeclarator(self)
             else:
                 return visitor.visitChildren(self)
 
@@ -3150,10 +3227,17 @@ class CParser ( Parser ):
             self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [CParser.Identifier]:
+                localctx = CParser.IdentifierDeclaratorContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
+
                 self.state = 301
                 self.match(CParser.Identifier)
                 pass
             elif token in [CParser.T__0]:
+                localctx = CParser.ParenDeclaratorContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
                 self.state = 302
                 self.match(CParser.T__0)
                 self.state = 303
@@ -3177,7 +3261,7 @@ class CParser ( Parser ):
                     self._errHandler.sync(self)
                     la_ = self._interp.adaptivePredict(self._input,32,self._ctx)
                     if la_ == 1:
-                        localctx = CParser.DirectDeclaratorContext(self, _parentctx, _parentState)
+                        localctx = CParser.ArrayDeclaratorContext(self, CParser.DirectDeclaratorContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_directDeclarator)
                         self.state = 308
                         if not self.precpred(self._ctx, 2):
@@ -3198,7 +3282,7 @@ class CParser ( Parser ):
                         pass
 
                     elif la_ == 2:
-                        localctx = CParser.DirectDeclaratorContext(self, _parentctx, _parentState)
+                        localctx = CParser.FunctionDeclaratorContext(self, CParser.DirectDeclaratorContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_directDeclarator)
                         self.state = 314
                         if not self.precpred(self._ctx, 1):

@@ -78,10 +78,11 @@ def main(argv):
 
     type_checking(ast)
     optimise_ast(ast)
-    generate_llvm_ir(ast, open("ir.ll", "w"))
-
     ast.generateDot(open("ast.dot", "w"))
     stt.generateDot(open("stt.dot", "w"))
+    generate_llvm_ir(ast, open("ir.ll", "w"))
+
+    print("")
 
 
 if __name__ == '__main__':

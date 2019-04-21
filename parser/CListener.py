@@ -467,12 +467,39 @@ class CListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CParser#directDeclarator.
-    def enterDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
+    # Enter a parse tree produced by CParser#arrayDeclarator.
+    def enterArrayDeclarator(self, ctx:CParser.ArrayDeclaratorContext):
         pass
 
-    # Exit a parse tree produced by CParser#directDeclarator.
-    def exitDirectDeclarator(self, ctx:CParser.DirectDeclaratorContext):
+    # Exit a parse tree produced by CParser#arrayDeclarator.
+    def exitArrayDeclarator(self, ctx:CParser.ArrayDeclaratorContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#parenDeclarator.
+    def enterParenDeclarator(self, ctx:CParser.ParenDeclaratorContext):
+        pass
+
+    # Exit a parse tree produced by CParser#parenDeclarator.
+    def exitParenDeclarator(self, ctx:CParser.ParenDeclaratorContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#identifierDeclarator.
+    def enterIdentifierDeclarator(self, ctx:CParser.IdentifierDeclaratorContext):
+        pass
+
+    # Exit a parse tree produced by CParser#identifierDeclarator.
+    def exitIdentifierDeclarator(self, ctx:CParser.IdentifierDeclaratorContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#functionDeclarator.
+    def enterFunctionDeclarator(self, ctx:CParser.FunctionDeclaratorContext):
+        pass
+
+    # Exit a parse tree produced by CParser#functionDeclarator.
+    def exitFunctionDeclarator(self, ctx:CParser.FunctionDeclaratorContext):
         pass
 
 

@@ -128,10 +128,10 @@ declarator:
 ;
 
 directDeclarator:
-	Identifier
-|	'(' declarator ')'
-|	directDeclarator '[' assignmentExpression? ']'
-|	directDeclarator '(' parameterTypeList? ')'
+	Identifier #identifierDeclarator
+|	'(' declarator ')' #parenDeclarator
+|	directDeclarator '[' assignmentExpression? ']' #arrayDeclarator
+|	directDeclarator '(' parameterTypeList? ')' #functionDeclarator
 // |	directDeclarator '(' identifierList? ')' // What is this?
 ;
 
