@@ -17,7 +17,7 @@ def generate_llvm_expr(node, op):
     elif not isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
         rhs = f"%{node.scope.temp_register}"
     elif isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
-        lhs = f"%{node.scope.temp_register - 1}"
+        lhs = f"%{node.scope.temp_register - 2}"
         rhs = f"%{node.scope.temp_register}"
 
     if isinstance(node.left(), ASTConstantNode):
@@ -674,6 +674,45 @@ class ASTIfStmtNode(ASTBaseNode):
     def __init__(self):
         super(ASTIfStmtNode, self).__init__()
         self.name = "If"
+        self.cond_register = None
+        self.true_label = None
+        self.false_label = None
+
+    def generateLLVMIRPrefix(self):
+
+        llvmir = ";If Statement\n"
+        return llvmir
+
+
+class ASTIfConditionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTIfConditionNode, self).__init__()
+        self.name = "IfCond"
+
+    def generateLLVMIRPostfix(self):
+        cond_register = f"%{self.scope.temp_register}"
+        self.scope.temp_register += 1
+        true_label = f"%{self.scope.temp_register}"
+        self.scope.temp_register += 1
+        false_label = f"%{self.scope.temp_register}"
+        self.parent.cond_register = cond_register
+        self.parent.true_label = true_label
+        self.parent.false_label = false_label
+
+        llvmir = f"br i1 {cond_register}, label {true_label}, label {false_label}\n"
+        return llvmir
+
+
+class ASTIfTrueNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTIfTrueNode, self).__init__()
+        self.name = "IfTrue"
+
+
+class ASTIfFalseNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTIfFalseNode, self).__init__()
+        self.name = "IfFalse"
 
 
 class ASTSwitchStmtNode(ASTBaseNode):
