@@ -1,4 +1,15 @@
+float f() {
+    return 2.5;
+}
+
 int main() {
     int a = 2;
-    return a;
+    
+    if (a == 0) {
+        a = 1;
+    } else {
+        a = 0;
+    }
+    
+    return 0;
 }

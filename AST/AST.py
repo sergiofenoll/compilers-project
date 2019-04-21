@@ -9,6 +9,7 @@ def CTypeToLLVMType(CType):
 
 
 def generate_llvm_expr(node, op):
+    llvmir = ""
     llvm_type = CTypeToLLVMType(node.type())
 
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
@@ -22,15 +23,24 @@ def generate_llvm_expr(node, op):
     if isinstance(node.left(), ASTConstantNode):
         lhs = node.left().value()
     elif isinstance(node.left(), ASTIdentifierNode):
-        lhs = node.scope.lookup(node.left().identifier).register
+        # LHS should contain dereferenced value of the variable
+        node.scope.temp_register += 1
+        ID_register = node.scope.lookup(node.left().identifier).register
+        lhs = f"%{node.scope.temp_register}"
+        llvmir += f"{node.scope.temp_register} = load {llvm_type}, {llvm_type}* {ID_register}\n"
 
     if isinstance(node.right(), ASTConstantNode):
         rhs = node.right().value()
     elif isinstance(node.right(), ASTIdentifierNode):
-        rhs = node.scope.lookup(node.right().identifier).register
+        # RHS should contain dereferenced value of the variable
+        node.scope.temp_register += 1
+        ID_register = node.scope.lookup(node.left().identifier).register
+        rhs = f"%{node.scope.temp_register}"
+        llvmir += f"{node.scope.temp_register} = load {llvm_type}, {llvm_type}* {ID_register}\n"
 
     node.scope.temp_register += 1
-    return f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
+    llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
+    return llvmir
 
 
 class ASTBaseNode:
@@ -670,10 +680,10 @@ class ASTReturnNode(ASTBaseNode):
         if isinstance(self.children[0], ASTConstantNode):
             return_value = self.children[0].value()
         elif isinstance(self.children[0], ASTIdentifierNode):
-            IDNode = self.children[0]
+            ID_node = self.children[0]
             # Load dereferenced value into temp register
             self.scope.temp_register += 1
-            id_register = IDNode.scope.lookup(IDNode.identifier).register
+            id_register = ID_node.scope.lookup(ID_node.identifier).register
             llvmir += f"%{self.scope.temp_register} = load {return_type}, {return_type}* {id_register}\n"
             return_value = f"%{self.scope.temp_register}"
         else:
