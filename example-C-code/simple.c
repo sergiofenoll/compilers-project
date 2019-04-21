@@ -1,7 +1,3 @@
-float f() {
-    return 2.5;
-}
-
 int main() {
     int a = 2;
     

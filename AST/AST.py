@@ -623,6 +623,29 @@ class ASTIfStmtNode(ASTBaseNode):
         super(ASTIfStmtNode, self).__init__()
         self.name = "If"
 
+    def generateLLVMIRPrefix(self):
+
+        llvmir = ";If Statement\n"
+        return llvmir
+
+
+class ASTIfConditionNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTIfConditionNode, self).__init__()
+        self.name = "IfCond"
+
+
+class ASTIfTrueNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTIfTrueNode, self).__init__()
+        self.name = "IfTrue"
+
+
+class ASTIfFalseNode(ASTBaseNode):
+    def __init__(self):
+        super(ASTIfFalseNode, self).__init__()
+        self.name = "IfFalse"
+
 
 class ASTSwitchStmtNode(ASTBaseNode):
     def __init__(self):
@@ -772,16 +795,7 @@ class ASTTypeSpecifierNode(ASTBaseNode):
 
     def _generateLLVMIR(self):
 
-        llvmir = ""
-        if self.tspec == "int":
-            llvmir = "i32"
-        elif self.tspec == "float":
-            llvmir = "float"
-        elif self.tspec == "char":
-            llvmir = "i8"
-        elif self.tspec == "void":
-            llvmir = "void"
-                
+        llvmir = CTypeToLLVMType(self.tspec)
         return llvmir
 
     def type(self):
