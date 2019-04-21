@@ -662,6 +662,26 @@ class ASTReturnNode(ASTBaseNode):
         super(ASTReturnNode, self).__init__()
         self.c_idx = c_idx
 
+    def generateLLVMIRPostfix(self):
+
+        llvmir = ""
+        return_value = ""
+        return_type = CTypeToLLVMType(self.children[0].type())
+        if isinstance(self.children[0], ASTConstantNode):
+            return_value = self.children[0].value()
+        elif isinstance(self.children[0], ASTIdentifierNode):
+            IDNode = self.children[0]
+            # Load dereferenced value into temp register
+            self.scope.temp_register += 1
+            id_register = IDNode.scope.lookup(IDNode.identifier).register
+            llvmir += f"%{self.scope.temp_register} = load {return_type}, {return_type}* {id_register}\n"
+            return_value = f"%{self.scope.temp_register}"
+        else:
+            return_value = self.children[0].scope.temp_register
+        
+        llvmir += f"ret {return_type} {return_value}\n"
+        return llvmir
+
     def optimise(self):
         # Prune siblings that come after this return
         if self.c_idx is not None:
@@ -682,7 +702,8 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
     def generateLLVMIRPrefix(self):
         type_specifier = self.returnType()._generateLLVMIR()
         identifier_name = self.identifier()._generateLLVMIR()
-        try:
+        has_params = isinstance(self.children[2], ASTParameterTypeList)
+        if has_params:
             args = self.children[2]
             arg_list = args._generateLLVMIR()
             arg_decl = ""
@@ -694,7 +715,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
                 arg_decl += f"store {type_spec} %{i}, {type_spec}* %{self.scope.temp_register}\n"
                 self.scope.lookup(identifier_node.identifier).register = f"%{self.scope.temp_register}"
                 self.scope.temp_register += 1
-        except IndexError:
+        else:
             arg_list = "()"
             arg_decl = ""
 
