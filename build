@@ -1,0 +1,18 @@
+#! /bin/sh
+
+echo "Building ANTLR grammar files..."
+echo "java -jar antlr-4.7.2-complete.jar C.g4 -Dlanguage=Python3 -o parser/"
+java -jar antlr-4.7.2-complete.jar C.g4 -Dlanguage=Python3 -o parser/
+echo "Finished building ANTLR grammar"
+echo
+for file in `find example-C-code -type f -name '*.c'`
+do
+    echo "Parsing $file"
+    python3 c2llvm.py $file
+    echo "Generated LLVM IR $file"
+done
+echo "Generating images from dotfiles"
+for file in `find testfiles -type f -name '*.dot'`
+do
+    dot -Tpng -o `echo $file | sed s/\.dot/\.png/` $file
+done
