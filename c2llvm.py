@@ -116,7 +116,7 @@ def main(argv):
     stt.generateDot(open("stt.dot", "w"))
     generate_llvm_ir(ast, open("ir.ll", "w"))
 
-    generate_test_output()
+    #generate_test_output()
 
 
 if __name__ == '__main__':

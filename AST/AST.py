@@ -13,7 +13,6 @@ def format_float(raw_float):
     formatted = raw_float
     if "." in raw_float:
         formatted += "0"
-        print(formatted)
     return formatted
 
 
@@ -49,6 +48,25 @@ def generate_llvm_expr(node, op):
 
     node.scope.temp_register += 1
     llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
+    return llvmir
+
+def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
+    # Handles implicit cast to destination type
+
+    llvmir = ""
+    origin_type = CTypeToLLVMType(origin_node.type())
+    dest_register = f"%{origin_node.scope.temp_register}"
+    origin_node.scope.temp_register += 1
+    cast_instruction = ""
+
+    if not (origin_type == "float" or dest_type == "float"):
+        cast_instruction = "zext"
+
+    elif origin_type == "float" and dest_type == "i32":
+        cast_instruction = "fptosi"
+
+    llvmir += f"{dest_register} = {cast_instruction} {origin_type} {origin_register} to {dest_type}"
+
     return llvmir
 
 
@@ -640,6 +658,9 @@ class ASTDeclarationNode(ASTBaseNode):
                 if llvm_type == "float":
                     # Write value in scientific notation
                     value = format_float(str(value))
+                elif llvm_type == "i8":
+                    # Cast character to Unicode value
+                    value = str(ord(value[1])) # Character of form: 'c' 
             else:
                 value = "%" + str(last_temp_register)
         else:
@@ -812,9 +833,19 @@ class ASTReturnNode(ASTBaseNode):
 
         llvmir = ""
         return_value = ""
-        return_type = CTypeToLLVMType(self.children[0].type())
+        return_type = CTypeToLLVMType(self.type())
+        # Find function type
+        function_return_type = None
+        ancestor = self.parent
+        while function_return_type is None:
+            if isinstance(ancestor, ASTFunctionDefinitionNode):
+                function_return_type = CTypeToLLVMType(ancestor.type())
+                break
+            ancestor = ancestor.parent
+
         if isinstance(self.children[0], ASTConstantNode):
             return_value = self.children[0].value()
+
         elif isinstance(self.children[0], ASTIdentifierNode):
             ID_node = self.children[0]
             # Load dereferenced value into temp register
@@ -822,16 +853,26 @@ class ASTReturnNode(ASTBaseNode):
             llvmir += f"%{self.scope.temp_register} = load {return_type}, {return_type}* {id_register}\n"
             return_value = f"%{self.scope.temp_register}"
             self.scope.temp_register += 1
+
         else:
             return_value = self.children[0].scope.temp_register
+
+        # Implicit cast
+        if return_type != function_return_type:
+            llvmir += generate_llvm_impl_cast(self, return_value, function_return_type) + "\n"
+            return_value = f"%{self.scope.temp_register-1}"
         
-        llvmir += f"ret {return_type} {return_value}\n"
+        llvmir += f"ret {function_return_type} {return_value}\n"
         return llvmir
 
     def optimise(self):
         # Prune siblings that come after this return
         if self.c_idx is not None:
             self.parent.children = self.parent.children[:self.c_idx+1]
+
+
+    def type(self):
+        return self.children[0].type()
 
 
 class ASTCompoundStmtNode(ASTBaseNode):
@@ -865,6 +906,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
                 arg_decl += f"store {type_spec} %{i}, {type_spec}* %{self.scope.temp_register}\n"
                 self.scope.lookup(ident).register = f"%{self.scope.temp_register}"
                 self.scope.temp_register += 1
+            self.scope.temp_register -= 1 # Fix for 'overcounting' and misaligning the scope counter
         else:
             self.scope.temp_register += 1 # Don't start at %0
             arg_list = "()"
@@ -886,6 +928,9 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
             return []
         else:
             return self.children[2].children
+
+    def type(self):
+        return self.returnType().type()
 
 
 class ASTParameterTypeList(ASTBaseNode):
