@@ -1,3 +1,4 @@
+import os
 import sys
 import AST.AST as AST
 import AST.STT as STT
@@ -96,7 +97,21 @@ def generate_test_output(test_dir = "./testfiles/happy-day", output_dir = './tes
 
 
 def main(argv):
-    file_input = FileStream(argv[1])
+    input_filepath = argv[1]
+
+    try:
+        output_dir = os.path.dirname(argv[2])
+        output_llvm = argv[2]
+        output_filename = output_llvm.split("/")[-1].rsplit(".", 1)[0]
+    except IndexError:
+        output_filename = input_filepath.split("/")[-1].rsplit(".", 1)[0]
+        output_dir = os.path.dirname(argv[1])
+        output_llvm = os.path.join(output_dir, output_filename + ".ll")
+
+    output_ast = os.path.join(output_dir, output_filename + ".ast.dot")
+    output_stt = os.path.join(output_dir, output_filename + ".stt.dot")
+
+    file_input = FileStream(input_filepath)
     lexer = CLexer(file_input)
     stream = CommonTokenStream(lexer)
     parser = CParser(stream)
@@ -112,6 +127,7 @@ def main(argv):
 
     type_checking(ast)
     optimise_ast(ast)
+
     ast.generateDot(open("ast.dot", "w"))
     stt.generateDot(open("stt.dot", "w"))
     generate_llvm_ir(ast, open("ir.ll", "w"))
