@@ -3,6 +3,8 @@ def CTypeToLLVMType(c_type):
         ir_type = "i32" + "*" * c_type.count("*")
     elif "char" in c_type:
         ir_type ="i8" + "*" * c_type.count("*")
+    elif "bool" in c_type:
+        ir_type = "i1" 
     else:
         ir_type = c_type + "*" * c_type.count("*")
     return ir_type
@@ -15,11 +17,30 @@ def format_float(raw_float):
         formatted += "0"
     return formatted
 
+def get_expression_type(node):
+    # Gets a node's type given its left & right child
+    l_type = node.left().type()
+    r_type = node.right().type()
+
+    if l_type == "float" or r_type == "float":
+        return "float"
+    elif l_type == "int" or r_type == "int":
+        return "int"
+    elif l_type == "char" or r_type == "char":
+        return "char"
+    elif l_type == "bool" or r_type == "bool":
+        return "bool"
+
+def get_expression_operands(node):
+    # Returns an expressions lhs and rhs registers that can be used in the actual expression
+
+    return "lhs", "rhs"
 
 def generate_llvm_expr(node, op):
     llvmir = ""
-    llvm_type = CTypeToLLVMType(node.type())
+    llvm_type = get_expression_type(node)
 
+    # Determine lhs and rhs in the operation
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
         lhs = f"%{node.scope.temp_register}"
     elif not isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
@@ -523,7 +544,16 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fsub" if self.type() == "float" else "sub")
 
 
-class ASTSmallerThanNode(ASTBinaryExpressionNode):
+class ASTLogicalNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTLogicalNode, self).__init__()
+        self.name = "LogicalNode"
+
+    def type(self):
+        return "bool"
+
+
+class ASTSmallerThanNode(ASTLogicalNode):
     def __init__(self):
         super(ASTSmallerThanNode, self).__init__()
         self.name = "<"
@@ -532,7 +562,7 @@ class ASTSmallerThanNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fcmp olt" if self.type() == "float" else "icmp slt")
 
 
-class ASTLargerThanNode(ASTBinaryExpressionNode):
+class ASTLargerThanNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLargerThanNode, self).__init__()
         self.name = ">"
@@ -541,7 +571,7 @@ class ASTLargerThanNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fcmp ogt" if self.type() == "float" else "icmp sgt")
 
 
-class ASTSmallerThanOrEqualNode(ASTBinaryExpressionNode):
+class ASTSmallerThanOrEqualNode(ASTLogicalNode):
     def __init__(self):
         super(ASTSmallerThanOrEqualNode, self).__init__()
         self.name = "<="
@@ -550,7 +580,7 @@ class ASTSmallerThanOrEqualNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fcmp ole" if self.type() == "float" else "icmp sle")
 
 
-class ASTLargerThanOrEqualNode(ASTBinaryExpressionNode):
+class ASTLargerThanOrEqualNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLargerThanOrEqualNode, self).__init__()
         self.name = ">="
@@ -559,7 +589,7 @@ class ASTLargerThanOrEqualNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fcmp oge" if self.type() == "float" else "icmp sge")
 
 
-class ASTEqualsNode(ASTBinaryExpressionNode):
+class ASTEqualsNode(ASTLogicalNode):
     def __init__(self):
         super(ASTEqualsNode, self).__init__()
         self.name = "=="
@@ -568,7 +598,7 @@ class ASTEqualsNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fcmp oeq" if self.type() == "float" else "icmp eq")
 
 
-class ASTNotEqualsNode(ASTBinaryExpressionNode):
+class ASTNotEqualsNode(ASTLogicalNode):
     def __init__(self):
         super(ASTNotEqualsNode, self).__init__()
         self.name = "!="
@@ -577,7 +607,7 @@ class ASTNotEqualsNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fcmp one" if self.type() == "float" else "icmp ne")
 
 
-class ASTLogicalAndNode(ASTBinaryExpressionNode):
+class ASTLogicalAndNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLogicalAndNode, self).__init__()
         self.name = "&&"
@@ -586,7 +616,7 @@ class ASTLogicalAndNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "and")
 
 
-class ASTLogicalOrNode(ASTBinaryExpressionNode):
+class ASTLogicalOrNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLogicalOrNode, self).__init__()
         self.name = "||"
@@ -744,6 +774,9 @@ class ASTIfConditionNode(ASTBaseNode):
         self.parent.true_label = f"IfTrue{cond_register}"
         self.parent.false_label = f"IfFalse{cond_register}" 
         self.parent.finish_label = f"IfEnd{cond_register}"
+        if len(self.parent.children) < 3:
+            # No false/else block; jump to end if condition is false
+            self.parent.false_label = self.parent.finish_label
 
         llvmir = f"br i1 {self.parent.cond_register}, label %{self.parent.true_label}, label %{self.parent.false_label}\n"
         return llvmir
