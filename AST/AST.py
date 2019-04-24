@@ -33,12 +33,24 @@ def get_expression_type(node):
 
 def get_expression_operands(node):
     # Returns an expressions lhs and rhs registers that can be used in the actual expression
+    l_child = node.left()
+    r_child = node.right()
+    l_type = l_child.type()
+    r_type = r_child.type()
+
+    # Account for implicit conversions
+    if not l_type == r_type:
+        pass
+
+    lhs = "TempLHS"
+    if isinstance(l_child, ASTConstantNode):
+        lhs = node.left().value()
 
     return "lhs", "rhs"
 
 def generate_llvm_expr(node, op):
     llvmir = ""
-    llvm_type = get_expression_type(node)
+    llvm_type = CTypeToLLVMType(get_expression_type(node))
 
     # Determine lhs and rhs in the operation
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
@@ -76,15 +88,23 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
 
     llvmir = ""
     origin_type = CTypeToLLVMType(origin_node.type())
-    dest_register = f"%{origin_node.scope.temp_register}"
-    origin_node.scope.temp_register += 1
     cast_instruction = ""
 
     if not (origin_type == "float" or dest_type == "float"):
         cast_instruction = "zext"
-
     elif origin_type == "float" and dest_type == "i32":
         cast_instruction = "fptosi"
+    elif origin_type == "i32" and dest_type == "float":
+        cast_instruction = "sitofp"
+    elif origin_type == "i8" and dest_type == "float":
+        # First convert to i32
+        llvmir += f"%{origin_node.scope.temp_register} = sext i8 {origin_register} to i32\n"
+        origin_register = f"%{origin_node.scope.temp_register}"
+        origin_node.scope.temp_register += 1
+        cast_instruction = "sitofp"
+
+    dest_register = f"%{origin_node.scope.temp_register}"
+    origin_node.scope.temp_register += 1        
 
     llvmir += f"{dest_register} = {cast_instruction} {origin_type} {origin_register} to {dest_type}"
 
