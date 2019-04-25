@@ -857,15 +857,15 @@ class ASTSwitchStmtNode(ASTBaseNode):
 class ASTWhileStmtNode(ASTBaseNode):
     def __init__(self, name="While"):
         super(ASTWhileStmtNode, self).__init__(name)
-        self.condLabel = None
-        self.trueLabel = None
-        self.endLabel = None
+        self.cond_label = None
+        self.true_label = None
+        self.finish_label = None
 
     def generateLLVMIRPostfix(self):
         # Set outer scope counter to scope counter
         self.parent.scope.temp_register = self.scope.temp_register
 
-        llvmir = f"\n{self.endLabel}:\n"
+        llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
 
@@ -877,12 +877,12 @@ class ASTWhileCondNode(ASTWhileStmtNode):
         # Set body scope counter to outer scope counter
         self.children[0].scope.temp_register = self.parent.scope.temp_register
         counter = self.scope.temp_register
-        self.parent.condLabel = f"WhileCond{counter}"
-        self.parent.trueLabel = f"WhileTrue{counter}"
-        self.parent.endLabel = f"WhileEnd{counter}"
+        self.parent.cond_label = f"WhileCond{counter}"
+        self.parent.true_label = f"WhileTrue{counter}"
+        self.parent.finish_label = f"WhileEnd{counter}"
 
-        llvmir = f"br label %{self.parent.condLabel}\n"
-        llvmir += f"\n{self.parent.condLabel}:\n"
+        llvmir = f"br label %{self.parent.cond_label}\n"
+        llvmir += f"\n{self.parent.cond_label}:\n"
         return llvmir
 
     def generateLLVMIRPostfix(self):
@@ -890,7 +890,7 @@ class ASTWhileCondNode(ASTWhileStmtNode):
         self.parent.scope.temp_register = self.children[0].scope.temp_register
 
         cond_register = self.scope.temp_register - 1
-        llvmir = f"br i1 %{cond_register}, label %{self.parent.trueLabel}, label %{self.parent.endLabel}\n"
+        llvmir = f"br i1 %{cond_register}, label %{self.parent.true_label}, label %{self.parent.finish_label}\n"
         return llvmir
 
 
@@ -902,20 +902,43 @@ class ASTWhileTrueNode(ASTWhileStmtNode):
         # Set body scope counter to outer scope counter
         self.children[0].scope.temp_register = self.parent.scope.temp_register
 
-        llvmir = f"\n{self.parent.trueLabel}:\n"
+        llvmir = f"\n{self.parent.true_label}:\n"
         return llvmir
 
     def generateLLVMIRPostfix(self):
         # Set outer scope counter to body scope counter
         self.parent.scope.temp_register = self.children[0].scope.temp_register
 
-        llvmir = f"br label %{self.parent.condLabel}\n"
+        llvmir = f"br label %{self.parent.cond_label}\n"
         return llvmir
 
 
 class ASTForStmtNode(ASTBaseNode):
-    def __init__(self, name):
+    def __init__(self, name="For"):
         super(ASTForStmtNode, self).__init__(name)
+        self.cond_label = None
+        self.true_label = None
+        self.finish_label = None
+
+
+class ASTForInitNode(ASTForStmtNode):
+    def __init__(self):
+        super(ASTForInitNode, self).__init__("ForInit")
+
+
+class ASTForCondNode(ASTForStmtNode):
+    def __init__(self):
+        super(ASTForCondNode, self).__init__("ForCond")
+
+
+class ASTForUpdaterNode(ASTForStmtNode):
+    def __init__(self):
+        super(ASTForUpdaterNode, self).__init__("ForUpdater")
+
+
+class ASTForTrueNode(ASTForStmtNode):
+    def __init__(self):
+        super(ASTForTrueNode, self).__init__("ForTrue")
 
 
 class ASTGotoNode(ASTBaseNode):
@@ -927,6 +950,18 @@ class ASTContinueNode(ASTBaseNode):
     def __init__(self, c_idx = None):
         super(ASTContinueNode, self).__init__()
         self.c_idx = c_idx
+
+    def generateLLVMIRPostfix(self):
+        # Get loop parent
+        loop_parent = self.parent
+        while not (isinstance(loop_parent, ASTWhileStmtNode) or isinstance(loop_parent, ASTForStmtNode)):
+            loop_parent = loop_parent.parent
+
+        # Loop cuts short, so increment counter to account for next block
+        self.scope.temp_register += 1
+        
+        llvmir = f"br label %{loop_parent.cond_label}\n"
+        return llvmir
     
     def optimise(self):
         # Prune siblings that come after this continue
@@ -938,6 +973,18 @@ class ASTBreakNode(ASTBaseNode):
     def __init__(self, c_idx = None):
         super(ASTBreakNode, self).__init__()
         self.c_idx = c_idx
+
+    def generateLLVMIRPostfix(self):
+        # Get loop parent (this is guaranteed to end since compilation fails if break outside of loop)
+        loop_parent = self.parent
+        while not (isinstance(loop_parent, ASTWhileStmtNode) or isinstance(loop_parent, ASTForStmtNode)):
+            loop_parent = loop_parent.parent
+
+        # Loop cuts short, so increment counter to account for next block
+        self.scope.temp_register += 1
+
+        llvmir = f"br label %{loop_parent.finish_label}\n"
+        return llvmir
     
     def optimise(self):
         # Prune siblings that come after this break

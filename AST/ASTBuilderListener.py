@@ -494,11 +494,14 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterContinue(self, ctx:CParser.ContinueContext):
-        loop_parent = self.current_node.parent
         # Check if inside loop body
-        if not (isinstance(loop_parent, AST.ASTIfStmtNode) or isinstance(loop_parent, AST.ASTWhileStmtNode)):
-            print("[ERROR] Continue outside of loop body.")
-            exit()
+        loop_parent = self.current_node.parent
+        while not (isinstance(loop_parent, AST.ASTIfStmtNode) or isinstance(loop_parent, AST.ASTWhileStmtNode)):
+            if loop_parent.parent:
+                loop_parent = loop_parent.parent
+            else:
+                print("[ERROR] Continue outside of loop body.")
+                exit()
         node = AST.ASTContinueNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
@@ -510,10 +513,13 @@ class ASTBuilder(CListener):
 
     def enterBreak(self, ctx:CParser.BreakContext):
         # Check if inside loop body
-        loop_parent = self.current_node.parent.parent
-        if not (isinstance(loop_parent, AST.ASTIfStmtNode) or isinstance(loop_parent, AST.ASTWhileStmtNode)):
-            print("[ERROR] Break outside of loop body.")
-            exit()
+        loop_parent = self.current_node.parent
+        while not (isinstance(loop_parent, AST.ASTIfStmtNode) or isinstance(loop_parent, AST.ASTWhileStmtNode)):
+            if loop_parent.parent:
+                loop_parent = loop_parent.parent
+            else:
+                print("[ERROR] Break outside of loop body.")
+                exit()
         node = AST.ASTBreakNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
         node.scope = self.current_node.scope
