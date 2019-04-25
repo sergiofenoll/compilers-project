@@ -448,7 +448,7 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         if isinstance(self.right(), ASTConstantNode):
             return f"store {llvm_type} {self.right().value()}, {llvm_type}* {identifier_name}\n"
         else:
-            last_temp_register = self.scope.temp_register
+            last_temp_register = self.scope.temp_register - 1
             return f"store {llvm_type} %{last_temp_register}, {llvm_type}* {identifier_name}\n"
 
 
@@ -776,11 +776,14 @@ class ASTIfStmtNode(ASTBaseNode):
         self.finish_label = None
 
     def generateLLVMIRPrefix(self):
-        # Just a newline for readability
+
+        # Newline for readability
         llvmir = "\n"
         return llvmir
 
     def generateLLVMIRPostfix(self):
+        # Update outer scope counter
+        self.parent.scope.temp_register = self.scope.temp_register
 
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
@@ -811,11 +814,15 @@ class ASTIfTrueNode(ASTBaseNode):
         self.name = "IfTrue"
 
     def generateLLVMIRPrefix(self):
+        # Set body scope counter to outer scope counter
+        self.children[0].scope.temp_register = self.parent.scope.temp_register
 
         llvmir = f"\n{self.parent.true_label}:\n"
         return llvmir
 
     def generateLLVMIRPostfix(self):
+        # Set outer scope counter to body scope counter
+        self.parent.scope.temp_register = self.children[0].scope.temp_register
 
         llvmir = f"br label %{self.parent.finish_label}\n"
         return llvmir
@@ -827,11 +834,15 @@ class ASTIfFalseNode(ASTBaseNode):
         self.name = "IfFalse"
 
     def generateLLVMIRPrefix(self):
+        # Set body scope counter to outer scope counter
+        self.children[0].scope.temp_register = self.parent.scope.temp_register
 
         llvmir = f"\n{self.parent.false_label}:\n"
         return llvmir
 
     def generateLLVMIRPostfix(self):
+        # Set outer scope counter to body scope counter
+        self.parent.scope.temp_register = self.children[0].scope.temp_register
 
         llvmir = f"br label %{self.parent.finish_label}\n"
         return llvmir
@@ -844,8 +855,62 @@ class ASTSwitchStmtNode(ASTBaseNode):
 
 
 class ASTWhileStmtNode(ASTBaseNode):
-    def __init__(self, name):
+    def __init__(self, name="While"):
         super(ASTWhileStmtNode, self).__init__(name)
+        self.condLabel = None
+        self.trueLabel = None
+        self.endLabel = None
+
+    def generateLLVMIRPostfix(self):
+        # Set outer scope counter to scope counter
+        self.parent.scope.temp_register = self.scope.temp_register
+
+        llvmir = f"\n{self.endLabel}:\n"
+        return llvmir
+
+
+class ASTWhileCondNode(ASTWhileStmtNode):
+    def __init__(self):
+        super(ASTWhileCondNode, self).__init__("WhileCond")
+
+    def generateLLVMIRPrefix(self):
+        # Set body scope counter to outer scope counter
+        self.children[0].scope.temp_register = self.parent.scope.temp_register
+        counter = self.scope.temp_register
+        self.parent.condLabel = f"WhileCond{counter}"
+        self.parent.trueLabel = f"WhileTrue{counter}"
+        self.parent.endLabel = f"WhileEnd{counter}"
+
+        llvmir = f"br label %{self.parent.condLabel}\n"
+        llvmir += f"\n{self.parent.condLabel}:\n"
+        return llvmir
+
+    def generateLLVMIRPostfix(self):
+        # Set outer scope counter to body scope counter
+        self.parent.scope.temp_register = self.children[0].scope.temp_register
+
+        cond_register = self.scope.temp_register - 1
+        llvmir = f"br i1 %{cond_register}, label %{self.parent.trueLabel}, label %{self.parent.endLabel}\n"
+        return llvmir
+
+
+class ASTWhileTrueNode(ASTWhileStmtNode):
+    def __init__(self):
+        super(ASTWhileTrueNode, self).__init__("WhileTrue")
+
+    def generateLLVMIRPrefix(self):
+        # Set body scope counter to outer scope counter
+        self.children[0].scope.temp_register = self.parent.scope.temp_register
+
+        llvmir = f"\n{self.parent.trueLabel}:\n"
+        return llvmir
+
+    def generateLLVMIRPostfix(self):
+        # Set outer scope counter to body scope counter
+        self.parent.scope.temp_register = self.children[0].scope.temp_register
+
+        llvmir = f"br label %{self.parent.condLabel}\n"
+        return llvmir
 
 
 class ASTForStmtNode(ASTBaseNode):

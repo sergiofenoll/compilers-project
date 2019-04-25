@@ -1,12 +1,11 @@
-float f() {
-    
-    char i = 'c';
-    float f = 1.2;
-    
-    if ((f < i) && 1) {
-        i = 1;
-    }
-    
-    return i;
-}
 
+
+int main() {
+
+    int a = 3;
+    
+    while (a > 0) {
+        a = a - 1;
+    }
+    return a;
+}

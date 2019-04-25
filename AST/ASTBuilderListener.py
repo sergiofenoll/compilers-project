@@ -455,20 +455,32 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterIterationStatement(self, ctx:CParser.IterationStatementContext):
+        node = None
         if ctx.For():
             node = AST.ASTForStmtNode("For")
-            node.parent = self.current_node
-            scope = STT.STTNode()
-            scope.parent = self.current_node.scope
-            scope.depth = scope.parent.depth + 1
-            node.scope = scope
-            self.current_node.scope.children.append(scope)
-            self.current_node.children.append(node)
-            self.current_node = node
         elif ctx.While():
-            pass
+            node = AST.ASTWhileStmtNode("While")
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
 
     def exitIterationStatement(self, ctx:CParser.IterationStatementContext):
+        # Create 'abstract' children
+
+        if ctx.For():
+            pass
+        elif ctx.While():
+            CondChild = AST.ASTWhileCondNode()
+            BodyChild = AST.ASTWhileTrueNode()
+            CondChild.children = [self.current_node.children[0]]
+            BodyChild.children = [self.current_node.children[1]]
+            CondChild.parent = self.current_node
+            BodyChild.parent = self.current_node
+            CondChild.scope = self.current_node.children[0].scope
+            BodyChild.scope = self.current_node.children[1].scope
+            self.current_node.children = [CondChild, BodyChild]
+
         self.current_node = self.current_node.parent
 
     def enterGoto(self, ctx:CParser.GotoContext):
@@ -522,6 +534,7 @@ class ASTBuilder(CListener):
             scope.depth = scope.parent.depth + 1
             node.scope = scope
             self.current_node.scope.children.append(scope)
+                
         self.current_node.children.append(node)
         self.current_node = node
 
