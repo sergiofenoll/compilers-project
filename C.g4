@@ -1,7 +1,7 @@
 grammar C;
 
 compilationUnit:
-	(functionDefinition | declaration)+? EOF
+	IncludeStdIO? (functionDefinition | declaration)+? EOF
 ;
 
 primaryExpression:
@@ -235,6 +235,9 @@ declarationList:
 	declaration
 |	declarationList declaration
 ;
+
+// Include
+IncludeStdIO: '#include <stdio.h>';
 
 // Types
 Char: 'char';

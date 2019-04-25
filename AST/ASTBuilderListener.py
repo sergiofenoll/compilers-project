@@ -36,6 +36,18 @@ class ASTBuilder(CListener):
     def __init__(self, ast):
         self.current_node = ast
 
+    def enterCompilationUnit(self, ctx:CParser.CompilationUnitContext):
+        includes_stdio = True if ctx.IncludeStdIO() else False
+
+        node = AST.ASTCompilationUnitNode(includes_stdio)
+        node.children = self.current_node.children
+        node.scope = self.current_node.scope
+        self.current_node = node
+
+        if includes_stdio:
+            self.current_node.scope.table["printf"] = STT.STTEntry("printf", "int", ["char*", "..."])
+            self.current_node.scope.table["scanf"] = STT.STTEntry("scanf", "int", ["char*", "..."])
+
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
         identifier = str(ctx.Identifier())
         node = AST.ASTIdentifierNode(identifier)
