@@ -134,10 +134,13 @@ def main(argv):
 
     type_checking(ast)
     optimise_ast(ast)
-    generate_llvm_ir(ast, open(output_llvm, "w"))
 
-    ast.generateDot(open(output_ast, "w"))
-    stt.generateDot(open(output_stt, "w"))
+    ast.generateDot(open("ast.dot", "w"))
+    stt.generateDot(open("stt.dot", "w"))
+    generate_llvm_ir(ast, open("ir.ll", "w"))
+
+    #generate_test_output()
+
 
 if __name__ == '__main__':
     main(sys.argv)

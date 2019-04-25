@@ -415,6 +415,9 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitSelectionStatement(self, ctx:CParser.SelectionStatementContext):
+
+        has_false_child = len(self.current_node.children) > 2
+
         # Create 'abstract' children
         CondChild = AST.ASTIfConditionNode()
         CondChild.parent = self.current_node
@@ -424,18 +427,23 @@ class ASTBuilder(CListener):
         IfTrueChild.parent = self.current_node
         IfTrueChild.scope = self.current_node.children[1].scope
 
-        IfFalseChild = AST.ASTIfFalseNode()
-        IfFalseChild.parent = self.current_node
-        IfFalseChild.scope = self.current_node.children[2].scope
+        IfFalseChild = None
+        if has_false_child:
+            IfFalseChild = AST.ASTIfFalseNode()
+            IfFalseChild.parent = self.current_node
+            IfFalseChild.scope = self.current_node.children[2].scope
 
         # Push current children down
         self.current_node.children[0].parent = CondChild
         CondChild.children.append(self.current_node.children[0])
         self.current_node.children[1].parent = IfTrueChild
         IfTrueChild.children.append(self.current_node.children[1])
-        self.current_node.children[2].parent = IfFalseChild
-        IfFalseChild.children.append(self.current_node.children[2])
-        self.current_node.children = [CondChild, IfTrueChild, IfFalseChild]
+        newChildren = [CondChild, IfTrueChild]
+        if has_false_child:
+            self.current_node.children[2].parent = IfFalseChild
+            IfFalseChild.children.append(self.current_node.children[2])
+            newChildren.append(IfFalseChild)  
+        self.current_node.children = newChildren      
 
         self.current_node = self.current_node.parent
 

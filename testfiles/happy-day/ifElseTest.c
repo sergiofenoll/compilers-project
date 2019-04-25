@@ -1,4 +1,3 @@
-
 void f() {
     int a = 1;
     if (a < 0) {

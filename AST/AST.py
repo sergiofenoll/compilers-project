@@ -5,7 +5,9 @@ def c2llvm_type(c_type):
     if "int" in c_type:
         ir_type = "i32" + "*" * c_type.count("*")
     elif "char" in c_type:
-        ir_type = "i8" + "*" * c_type.count("*")
+        ir_type ="i8" + "*" * c_type.count("*")
+    elif "bool" in c_type:
+        ir_type = "i1"
     else:
         ir_type = c_type + "*" * c_type.count("*")
     return ir_type
@@ -19,10 +21,32 @@ def hexify_float(f):
     return hex(double_prec)
 
 
+def get_expression_type(node):
+    # Gets a node's type given its left & right child
+    l_type = node.left().type()
+    r_type = node.right().type()
+
+    if l_type == "float" or r_type == "float":
+        return "float"
+    elif l_type == "int" or r_type == "int":
+        return "int"
+    elif l_type == "char" or r_type == "char":
+        return "char"
+    elif l_type == "bool" or r_type == "bool":
+        return "bool"
+
 def generate_llvm_expr(node, op):
     llvmir = ""
-    llvm_type = c2llvm_type(node.type())
+    expr_type = get_expression_type(node)
+    llvm_type = c2llvm_type(expr_type)
 
+    # Determine lhs and rhs in the operation
+    l_child = node.left()
+    l_type = l_child.type()
+    r_child = node.right()
+    r_type = r_child.type()
+
+    # Set up 'naive' lhs & rhs using NodeType
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
         lhs = f"%{node.scope.temp_register}"
     elif not isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
@@ -35,22 +59,59 @@ def generate_llvm_expr(node, op):
         lhs = node.left().llvm_value()
     elif isinstance(node.left(), ASTIdentifierNode):
         # LHS should contain dereferenced value of the variable
-        node.scope.temp_register += 1
         ID_register = node.scope.lookup(node.left().identifier).register
         lhs = f"%{node.scope.temp_register}"
-        llvmir += f"{lhs} = load {llvm_type}, {llvm_type}* {ID_register}\n"
+        lhs_type = c2llvm_type(l_type)
+        llvmir += f"{lhs} = load {lhs_type}, {lhs_type}* {ID_register}\n"
+        node.scope.temp_register += 1
 
     if isinstance(node.right(), ASTConstantNode):
         rhs = node.right().llvm_value()
     elif isinstance(node.right(), ASTIdentifierNode):
         # RHS should contain dereferenced value of the variable
-        node.scope.temp_register += 1
         ID_register = node.scope.lookup(node.left().identifier).register
         rhs = f"%{node.scope.temp_register}"
-        llvmir += f"{rhs} = load {llvm_type}, {llvm_type}* {ID_register}\n"
+        rhs_type = c2llvm_type(r_type)
+        llvmir += f"{rhs} = load {rhs_type}, {rhs_type}* {ID_register}\n"
+        node.scope.temp_register += 1
+
+    # Account for implicit conversions
+    if l_type != expr_type:
+        # Cast & update lhs
+        llvmir += generate_llvm_impl_cast(l_child, lhs, llvm_type)
+        lhs = f"%{l_child.scope.temp_register-1}"
+    elif r_type != expr_type:
+        # Cast & update rhs
+        llvmir += generate_llvm_impl_cast(r_child, rhs, llvm_type)
+        rhs = f"%{r_child.scope.temp_register-1}"
 
     llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
     node.scope.temp_register += 1
+    return llvmir
+
+def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
+    # Handles implicit cast to destination type
+
+    llvmir = ""
+    origin_type = c2llvm_type(origin_node.type())
+    cast_instruction = ""
+
+    if not (origin_type == "float" or dest_type == "float"):
+        cast_instruction = "zext"
+    elif origin_type == "float" and dest_type == "i32":
+        cast_instruction = "fptosi"
+    elif origin_type == "i32" and dest_type == "float":
+        cast_instruction = "sitofp"
+    elif origin_type == "i8" and dest_type == "float":
+        # First convert to i32
+        llvmir += f"%{origin_node.scope.temp_register} = sext i8 {origin_register} to i32\n"
+        origin_register = f"%{origin_node.scope.temp_register}"
+        origin_node.scope.temp_register += 1
+        cast_instruction = "sitofp"
+
+    dest_register = f"%{origin_node.scope.temp_register}"   
+    llvmir += f"{dest_register} = {cast_instruction} {origin_type} {origin_register} to {dest_type}\n"
+    origin_node.scope.temp_register += 1
     return llvmir
 
 
@@ -457,14 +518,7 @@ class ASTBinaryExpressionNode(ASTExpressionNode):
         return self.children[1]
 
     def type(self):
-        lhs_type = self.left().type()
-        rhs_type = self.right().type()
-        if lhs_type == rhs_type:
-            return lhs_type
-        elif lhs_type == 'float' or rhs_type == 'float':
-            return 'float'
-        elif lhs_type == 'int' or rhs_type == 'int':
-            return 'int'
+        return get_expression_type(self)
 
 
 class ASTAssignmentNode(ASTBinaryExpressionNode):
@@ -594,61 +648,74 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "fsub" if self.type() == "float" else "sub")
 
 
-class ASTSmallerThanNode(ASTBinaryExpressionNode):
+class ASTLogicalNode(ASTBinaryExpressionNode):
+    def __init__(self):
+        super(ASTLogicalNode, self).__init__()
+        self.name = "LogicalNode"
+
+    def type(self):
+        return "bool"
+
+    def float_op(self):
+        result = ("float" in self.left().type()) or ("float" in self.right().type())
+        return result
+
+
+class ASTSmallerThanNode(ASTLogicalNode):
     def __init__(self):
         super(ASTSmallerThanNode, self).__init__()
         self.name = "<"
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fcmp olt" if self.type() == "float" else "icmp slt")
+        return generate_llvm_expr(self, "fcmp olt" if self.float_op() else "icmp slt")
 
 
-class ASTLargerThanNode(ASTBinaryExpressionNode):
+class ASTLargerThanNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLargerThanNode, self).__init__()
         self.name = ">"
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fcmp ogt" if self.type() == "float" else "icmp sgt")
+        return generate_llvm_expr(self, "fcmp ogt" if self.float_op() else "icmp sgt")
 
 
-class ASTSmallerThanOrEqualNode(ASTBinaryExpressionNode):
+class ASTSmallerThanOrEqualNode(ASTLogicalNode):
     def __init__(self):
         super(ASTSmallerThanOrEqualNode, self).__init__()
         self.name = "<="
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fcmp ole" if self.type() == "float" else "icmp sle")
+        return generate_llvm_expr(self, "fcmp ole" if self.float_op() else "icmp sle")
 
 
-class ASTLargerThanOrEqualNode(ASTBinaryExpressionNode):
+class ASTLargerThanOrEqualNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLargerThanOrEqualNode, self).__init__()
         self.name = ">="
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fcmp oge" if self.type() == "float" else "icmp sge")
+        return generate_llvm_expr(self, "fcmp oge" if self.float_op() else "icmp sge")
 
 
-class ASTEqualsNode(ASTBinaryExpressionNode):
+class ASTEqualsNode(ASTLogicalNode):
     def __init__(self):
         super(ASTEqualsNode, self).__init__()
         self.name = "=="
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fcmp oeq" if self.type() == "float" else "icmp eq")
+        return generate_llvm_expr(self, "fcmp oeq" if self.float_op() else "icmp eq")
 
 
-class ASTNotEqualsNode(ASTBinaryExpressionNode):
+class ASTNotEqualsNode(ASTLogicalNode):
     def __init__(self):
         super(ASTNotEqualsNode, self).__init__()
         self.name = "!="
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fcmp one" if self.type() == "float" else "icmp ne")
+        return generate_llvm_expr(self, "fcmp one" if self.float_op() else "icmp ne")
 
 
-class ASTLogicalAndNode(ASTBinaryExpressionNode):
+class ASTLogicalAndNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLogicalAndNode, self).__init__()
         self.name = "&&"
@@ -657,7 +724,7 @@ class ASTLogicalAndNode(ASTBinaryExpressionNode):
         return generate_llvm_expr(self, "and")
 
 
-class ASTLogicalOrNode(ASTBinaryExpressionNode):
+class ASTLogicalOrNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLogicalOrNode, self).__init__()
         self.name = "||"
@@ -726,6 +793,12 @@ class ASTDeclarationNode(ASTBaseNode):
             value_node = self.children[2]
             if isinstance(value_node, ASTConstantNode):
                 value = value_node.llvm_value()
+                if llvm_type == "float":
+                    # Write value in scientific notation
+                    value = hexify_float(str(value))
+                elif llvm_type == "i8":
+                    # Cast character to Unicode value
+                    value = str(ord(value[1])) # Character of form: 'c'
             else:
                 value = "%" + str(last_temp_register)
         else:
@@ -792,8 +865,12 @@ class ASTIfStmtNode(ASTBaseNode):
         self.false_label = None
         self.finish_label = None
 
-    def exit_llvm_text(self):
+    def enter_llvm_text(self):
+        # Just a newline for readability
+        llvmir = "\n"
+        return llvmir
 
+    def exit_llvm_text(self):
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
@@ -804,11 +881,14 @@ class ASTIfConditionNode(ASTBaseNode):
         self.name = "IfCond"
 
     def exit_llvm_text(self):
-        cond_register = self.scope.temp_register
+        cond_register = self.scope.temp_register - 1
         self.parent.cond_register = f"%{cond_register}"
         self.parent.true_label = f"IfTrue{cond_register}"
         self.parent.false_label = f"IfFalse{cond_register}" 
         self.parent.finish_label = f"IfEnd{cond_register}"
+        if len(self.parent.children) < 3:
+            # No false/else block; jump to end if condition is false
+            self.parent.false_label = self.parent.finish_label
 
         llvmir = f"br i1 {self.parent.cond_register}, label %{self.parent.true_label}, label %{self.parent.false_label}\n"
         return llvmir
@@ -892,15 +972,29 @@ class ASTBreakNode(ASTBaseNode):
 class ASTReturnNode(ASTBaseNode):
     def __init__(self, c_idx):
         super(ASTReturnNode, self).__init__()
+        self.name = "Return"
         self.c_idx = c_idx
 
     def exit_llvm_text(self):
 
         llvmir = ""
         return_value = ""
+
         return_type = c2llvm_type(self.children[0].type())
         if isinstance(self.children[0], ASTConstantNode):
             return_value = self.children[0].llvm_value()
+        # Find function type
+        function_return_type = None
+        ancestor = self.parent
+        while function_return_type is None:
+            if isinstance(ancestor, ASTFunctionDefinitionNode):
+                function_return_type = c2llvm_type(ancestor.type())
+                break
+            ancestor = ancestor.parent
+
+        if isinstance(self.children[0], ASTConstantNode):
+            return_value = self.children[0].value()
+
         elif isinstance(self.children[0], ASTIdentifierNode):
             ID_node = self.children[0]
             # Load dereferenced value into temp register
@@ -908,16 +1002,26 @@ class ASTReturnNode(ASTBaseNode):
             llvmir += f"%{self.scope.temp_register} = load {return_type}, {return_type}* {id_register}\n"
             return_value = f"%{self.scope.temp_register}"
             self.scope.temp_register += 1
+
         else:
             return_value = f"%{self.children[0].scope.temp_register - 1}"
+
+        # Implicit cast
+        if return_type != function_return_type:
+            llvmir += generate_llvm_impl_cast(self, return_value, function_return_type) + "\n"
+            return_value = f"%{self.scope.temp_register-1}"
         
-        llvmir += f"ret {return_type} {return_value}\n"
+        llvmir += f"ret {function_return_type} {return_value}\n"
         return llvmir
 
     def optimise(self):
         # Prune siblings that come after this return
         if self.c_idx is not None:
             self.parent.children = self.parent.children[:self.c_idx+1]
+
+
+    def type(self):
+        return self.children[0].type()
 
 
 class ASTCompoundStmtNode(ASTBaseNode):
@@ -951,6 +1055,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
                 arg_decl += f"store {type_spec} %{i}, {type_spec}* %{self.scope.temp_register}\n"
                 self.scope.lookup(ident).register = f"%{self.scope.temp_register}"
                 self.scope.temp_register += 1
+            self.scope.temp_register -= 1 # Fix for 'overcounting' and misaligning the scope counter
         else:
             self.scope.temp_register += 1 # Don't start at %0
             arg_list = "()"
@@ -972,6 +1077,9 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
             return []
         else:
             return self.children[2].children
+
+    def type(self):
+        return self.returnType().type()
 
 
 class ASTParameterTypeList(ASTBaseNode):
