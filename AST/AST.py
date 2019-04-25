@@ -1002,28 +1002,83 @@ class ASTForStmtNode(ASTBaseNode):
     def __init__(self, name="For"):
         super(ASTForStmtNode, self).__init__(name)
         self.cond_label = None
+        self.updater_label = None
         self.true_label = None
         self.finish_label = None
+
+    def exit_llvm_text(self):
+
+        llvmir = f"\n{self.finish_label}:\n"
+        return llvmir
 
 
 class ASTForInitNode(ASTForStmtNode):
     def __init__(self):
         super(ASTForInitNode, self).__init__("ForInit")
 
+    def enter_llvm_text(self):
+        # Newline for readability
+        llvmir = "\n"
+        return llvmir
+    
+    def exit_llvm_text(self):
+        # Override parent method because this returns nothing
+        return ""
+
 
 class ASTForCondNode(ASTForStmtNode):
     def __init__(self):
         super(ASTForCondNode, self).__init__("ForCond")
+
+    def enter_llvm_text(self):
+        counter = self.scope.temp_register
+        self.parent.cond_label = f"ForCond{counter}"
+        self.parent.updater_label = f"ForUpdater{counter}"
+        self.parent.true_label = f"ForTrue{counter}"
+        self.parent.finish_label = f"ForEnd{counter}"
+
+        llvmir = f"br label %{self.parent.cond_label}\n\n"
+        llvmir += f"{self.parent.cond_label}:\n"
+        return llvmir
+
+    def exit_llvm_text(self):
+
+        llvmir = f"br i1 %{self.scope.temp_register-1}, label %{self.parent.updater_label}, label %{self.parent.finish_label}\n"
+        return llvmir
 
 
 class ASTForUpdaterNode(ASTForStmtNode):
     def __init__(self):
         super(ASTForUpdaterNode, self).__init__("ForUpdater")
 
+    def enter_llvm_text(self):
+
+        llvmir = f"{self.parent.updater_label}:\n"
+        return llvmir
+
+    def exit_llvm_text(self):
+
+        llvmir = f"br label %{self.parent.true_label}\n"
+        return llvmir
+
 
 class ASTForTrueNode(ASTForStmtNode):
     def __init__(self):
         super(ASTForTrueNode, self).__init__("ForTrue")
+
+    def enter_llvm_text(self):
+        # Set scope counter to parent scope counter
+        self.scope.temp_register = self.parent.scope.temp_register
+
+        llvmir = f"\n{self.parent.true_label}:\n"
+        return llvmir
+
+    def exit_llvm_text(self):
+        # Set parent scope counter to scope counter
+        self.parent.scope.temp_register = self.scope.temp_register
+
+        llvmir = f"br label %{self.parent.finish_label}\n"
+        return llvmir
 
 
 class ASTGotoNode(ASTBaseNode):

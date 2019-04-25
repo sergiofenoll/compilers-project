@@ -481,7 +481,23 @@ class ASTBuilder(CListener):
         # Create 'abstract' children
 
         if ctx.For():
-            pass
+            InitChild = AST.ASTForInitNode()
+            CondChild = AST.ASTForCondNode()
+            UpdaterChild = AST.ASTForUpdaterNode()
+            BodyChild = AST.ASTForTrueNode()
+            InitChild.children = [self.current_node.children[0]]
+            CondChild.children = [self.current_node.children[1]]
+            UpdaterChild.children = [self.current_node.children[2]]
+            BodyChild.children = [self.current_node.children[3]]
+            InitChild.parent = self.current_node
+            CondChild.parent = self.current_node
+            UpdaterChild.parent = self.current_node
+            BodyChild.parent = self.current_node
+            InitChild.scope = self.current_node.children[0].scope
+            CondChild.scope = self.current_node.children[1].scope
+            UpdaterChild.scope = self.current_node.children[2].scope
+            BodyChild.scope = self.current_node.children[3].scope
+            self.current_node.children = [InitChild, CondChild, UpdaterChild, BodyChild]
         elif ctx.While():
             CondChild = AST.ASTWhileCondNode()
             BodyChild = AST.ASTWhileTrueNode()
