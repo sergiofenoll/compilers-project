@@ -35,10 +35,14 @@ def generate_llvm_ir(ast, output):
     stack = list()
     parent_stack = list()
     stack.append(ast)
+    data = ""
+    text = ""
     while stack:
         node = stack.pop()
-        prefix = node.generateLLVMIRPrefix()
-        output.write(prefix)
+
+        data += node.enter_llvm_data()
+        text += node.enter_llvm_text()
+
         parent_stack.append(node)
         for child in node.children[::-1]:
             stack.append(child)
@@ -46,10 +50,13 @@ def generate_llvm_ir(ast, output):
             last_parent = parent_stack[-1]
             if not last_parent.children or last_parent.children[-1] == node:
                 node = parent_stack.pop()
-                postfix = node.generateLLVMIRPostfix()
-                output.write(postfix)
+
+                data += node.exit_llvm_data()
+                text += node.exit_llvm_text()
+
             else:
                 break
+    output.write(data + "\n" + text)
 
 
 def type_checking(ast):

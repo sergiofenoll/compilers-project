@@ -1,25 +1,27 @@
-def CTypeToLLVMType(c_type):
+import struct
+
+
+def c2llvm_type(c_type):
     if "int" in c_type:
         ir_type = "i32" + "*" * c_type.count("*")
     elif "char" in c_type:
-        ir_type ="i8" + "*" * c_type.count("*")
+        ir_type = "i8" + "*" * c_type.count("*")
     else:
         ir_type = c_type + "*" * c_type.count("*")
     return ir_type
 
-def format_float(raw_float):
-    # Adds 0 to float in order to ensure representability
-    # TODO: Fix this because it doesn't work
-    formatted = raw_float
-    if "." in raw_float:
-        formatted += "0"
-        print(formatted)
-    return formatted
+
+def hexify_float(f):
+    # Truncate float to single precision, then convert to a double precision hexstring
+    # #JustLLVMIRThings
+    single_prec = struct.unpack('f', struct.pack('f', f))[0]
+    double_prec = struct.unpack('<Q', struct.pack('<d', single_prec))[0]
+    return hex(double_prec)
 
 
 def generate_llvm_expr(node, op):
     llvmir = ""
-    llvm_type = CTypeToLLVMType(node.type())
+    llvm_type = c2llvm_type(node.type())
 
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
         lhs = f"%{node.scope.temp_register}"
@@ -30,7 +32,7 @@ def generate_llvm_expr(node, op):
         rhs = f"%{node.scope.temp_register}"
 
     if isinstance(node.left(), ASTConstantNode):
-        lhs = node.left().value()
+        lhs = node.left().llvm_value()
     elif isinstance(node.left(), ASTIdentifierNode):
         # LHS should contain dereferenced value of the variable
         node.scope.temp_register += 1
@@ -39,7 +41,7 @@ def generate_llvm_expr(node, op):
         llvmir += f"{lhs} = load {llvm_type}, {llvm_type}* {ID_register}\n"
 
     if isinstance(node.right(), ASTConstantNode):
-        rhs = node.right().value()
+        rhs = node.right().llvm_value()
     elif isinstance(node.right(), ASTIdentifierNode):
         # RHS should contain dereferenced value of the variable
         node.scope.temp_register += 1
@@ -47,8 +49,8 @@ def generate_llvm_expr(node, op):
         rhs = f"%{node.scope.temp_register}"
         llvmir += f"{rhs} = load {llvm_type}, {llvm_type}* {ID_register}\n"
 
-    node.scope.temp_register += 1
     llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
+    node.scope.temp_register += 1
     return llvmir
 
 
@@ -62,10 +64,16 @@ class ASTBaseNode:
         # Maintenance variable for dotfile generation
         self.__num = 0
 
-    def generateLLVMIRPrefix(self):
+    def enter_llvm_data(self):
         return ""
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_data(self):
+        return ""
+
+    def enter_llvm_text(self):
+        return ""
+
+    def exit_llvm_text(self):
         return ""
 
     def _generateLLVMIR(self):
@@ -106,6 +114,19 @@ class ASTBaseNode:
 
     def value(self):
         return None
+
+
+class ASTCompilationUnitNode(ASTBaseNode):
+    def __init__(self, includes_stdio=False):
+        super(ASTCompilationUnitNode, self).__init__()
+        self.name = "Root"
+        self.includes_stdio = includes_stdio
+
+    def enter_llvm_text(self):
+        if self.includes_stdio:
+            return "declare i32 @printf(i8*, ...)\ndeclare i32 @scanf(i8*, ...)\n"
+        else:
+            return ""
 
 
 class ASTIdentifierNode(ASTBaseNode):
@@ -176,6 +197,12 @@ class ASTConstantNode(ASTBaseNode):
     def value(self):
         return self.__value
 
+    def llvm_value(self):
+        if self.type_specifier == "float":
+            return hexify_float(self.__value)
+        else:
+            return self.__value
+
 
 class ASTStringLiteralNode(ASTBaseNode):
     def __init__(self, value):
@@ -188,6 +215,42 @@ class ASTStringLiteralNode(ASTBaseNode):
 
     def value(self):
         return self.__value
+
+    def enter_llvm_data(self):
+        def clean_string(s):
+            def escape_seq_to_hex(char):
+                hexed_char = hex(ord(char))
+                hexed_char = hexed_char.replace("0x", "")
+                if len(hexed_char) == 1:
+                    hexed_char = "0" + hexed_char
+                return "\\" + hexed_char
+            mapper = {
+                "\\a": escape_seq_to_hex("\a"),
+                "\\b": escape_seq_to_hex("\b"),
+                "\\f": escape_seq_to_hex("\f"),
+                "\\n": escape_seq_to_hex("\n"),
+                "\\r": escape_seq_to_hex("\r"),
+                "\\t": escape_seq_to_hex("\t"),
+                "\\v": escape_seq_to_hex("\v"),
+                "\\'": escape_seq_to_hex("\'"),
+                "\\\"": escape_seq_to_hex("\""),
+            }
+            s = s.replace("\"", "")
+            s_len = len(s)
+            slash_indices = [i for i, c in enumerate(s) if c == "\\"]
+            for slash in slash_indices[::-1]:
+                escape_sequence = s[slash:slash + 2]
+                if escape_sequence in mapper:
+                    s_len -= 1 * s.count(escape_sequence)
+                    s = s.replace(escape_sequence, mapper[escape_sequence])
+                else:
+                    s = s[:slash] + "\\22" + s[slash:]
+            return s, s_len
+
+        register = self.scope.temp_register
+        cleaned_string, length = clean_string(self.__value)
+        self.scope.temp_register += 1
+        return f'@{register} = private unnamed_addr constant [{length + 1} x i8] c"{cleaned_string}\00"\n'
 
 
 class ASTExpressionNode(ASTBaseNode):
@@ -215,13 +278,13 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
     def indexer(self):
         return self.children[1]
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         symbol_table_entry = self.scope.lookup(self.identifier().identifier)
-        array_member_type = CTypeToLLVMType(self.type())
+        array_member_type = c2llvm_type(self.type())
         array_type = self.scope.lookup(self.identifier().identifier).aux_type
         array_register = symbol_table_entry.register
         if isinstance(self.indexer(), ASTConstantNode):
-            idx = self.indexer().value()
+            idx = self.indexer().llvm_value()
         else:
             idx = self.scope.temp_register
         llvm_ir = f"%{self.scope.temp_register} = getelementptr {array_type}, {array_type}* {array_register}, i32 0, i32 {idx}\n"
@@ -237,7 +300,33 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         self.name = "()"
 
     def arguments(self):
-        return self.children[1]
+        return self.children[1:]
+
+    def enter_llvm_text(self):
+        return ""
+
+    def exit_llvm_text(self):
+        register = self.scope.temp_register
+        self.scope.temp_register += 1
+
+        function_register = self.scope.lookup(self.identifier().identifier).register
+        function_type = c2llvm_type(self.type())
+
+        arguments = list()
+        expr_arg_count = sum(isinstance(x, ASTExpressionNode) for x in self.arguments())
+        expr_idx = 0
+        for arg in self.arguments():
+            tspec = c2llvm_type(arg.type())
+            if isinstance(arg, ASTConstantNode):
+                arguments.append(f"{tspec} {arg.llvm_value()}")
+            elif isinstance(arg, ASTIdentifierNode):
+                entry = self.scope.lookup(arg.identifier)
+                arguments.append(f"{tspec} {entry.register}")
+            elif isinstance(arg, ASTExpressionNode):
+                arguments.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
+                expr_idx += 1
+
+        return f"%{register} = call {function_type} {function_register}({', '.join(arguments)})\n"
 
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
@@ -389,9 +478,9 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
     def value(self):
         return self.right().value()
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         identifier_name = self.left()._generateLLVMIR()
-        llvm_type = CTypeToLLVMType(self.type())
+        llvm_type = c2llvm_type(self.type())
         if isinstance(self.right(), ASTConstantNode):
             return f"store {llvm_type} {self.right().value()}, {llvm_type}* {identifier_name}\n"
         else:
@@ -435,7 +524,7 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
             self.parent.children.insert(self.c_idx, self.right())
             self = None
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fmul" if self.type() == "float" else "mul")
 
 
@@ -457,7 +546,7 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
             # Division by 0: warn user
             print("[WARNING] Division by 0.")
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fdiv" if self.type() == "float" else "sdiv")
 
 
@@ -483,7 +572,7 @@ class ASTModuloNode(ASTBinaryExpressionNode):
             print("Can't do modulo on floating types")
             exit()
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "srem")
 
 
@@ -492,7 +581,7 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
         super(ASTAdditionNode, self).__init__()
         self.name = "+"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fadd" if self.type() == "float" else "add")
 
 
@@ -501,7 +590,7 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
         super(ASTSubtractionNode, self).__init__()
         self.name = "-"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fsub" if self.type() == "float" else "sub")
 
 
@@ -510,7 +599,7 @@ class ASTSmallerThanNode(ASTBinaryExpressionNode):
         super(ASTSmallerThanNode, self).__init__()
         self.name = "<"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp olt" if self.type() == "float" else "icmp slt")
 
 
@@ -519,7 +608,7 @@ class ASTLargerThanNode(ASTBinaryExpressionNode):
         super(ASTLargerThanNode, self).__init__()
         self.name = ">"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp ogt" if self.type() == "float" else "icmp sgt")
 
 
@@ -528,7 +617,7 @@ class ASTSmallerThanOrEqualNode(ASTBinaryExpressionNode):
         super(ASTSmallerThanOrEqualNode, self).__init__()
         self.name = "<="
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp ole" if self.type() == "float" else "icmp sle")
 
 
@@ -537,7 +626,7 @@ class ASTLargerThanOrEqualNode(ASTBinaryExpressionNode):
         super(ASTLargerThanOrEqualNode, self).__init__()
         self.name = ">="
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp oge" if self.type() == "float" else "icmp sge")
 
 
@@ -546,7 +635,7 @@ class ASTEqualsNode(ASTBinaryExpressionNode):
         super(ASTEqualsNode, self).__init__()
         self.name = "=="
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp oeq" if self.type() == "float" else "icmp eq")
 
 
@@ -555,7 +644,7 @@ class ASTNotEqualsNode(ASTBinaryExpressionNode):
         super(ASTNotEqualsNode, self).__init__()
         self.name = "!="
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp one" if self.type() == "float" else "icmp ne")
 
 
@@ -564,7 +653,7 @@ class ASTLogicalAndNode(ASTBinaryExpressionNode):
         super(ASTLogicalAndNode, self).__init__()
         self.name = "&&"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "and")
 
 
@@ -573,7 +662,7 @@ class ASTLogicalOrNode(ASTBinaryExpressionNode):
         super(ASTLogicalOrNode, self).__init__()
         self.name = "||"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return generate_llvm_expr(self, "or")
 
 
@@ -583,7 +672,7 @@ class ASTDeclarationNode(ASTBaseNode):
         self.name = "Decl"
         self.c_idx = c_idx
 
-    def generateLLVMIRPrefix(self):
+    def enter_llvm_text(self):
         # Allocate new register
         if isinstance(self.children[1], ASTArrayDeclarationNode):
             return ""
@@ -597,7 +686,7 @@ class ASTDeclarationNode(ASTBaseNode):
 
         return f"{register} = alloca {llvm_type}\n"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         if isinstance(self.children[1], ASTArrayDeclarationNode):
             register = self.identifier()._generateLLVMIR()
             type_node = self.children[0]
@@ -614,7 +703,7 @@ class ASTDeclarationNode(ASTBaseNode):
                     self.scope.lookup(
                         self.identifier().identifier).aux_register = f"%{self.scope.temp_register - counter}"
                 else:
-                    array_len = queue[-1].children[1].value()
+                    array_len = queue[-1].children[1].llvm_value()
                     llvm_type = f"[{array_len} x {llvm_type}]"
                 counter += 1
                 queue.append(queue[-1].children[0])
@@ -626,20 +715,17 @@ class ASTDeclarationNode(ASTBaseNode):
                     break
                 # initialize array
                 llvm_ir += f"%{self.scope.temp_register} = getelementptr {llvm_type}, {llvm_type}* {register}, i32 0, i32 {idx}\n"
-                llvm_ir += f"store {member_type} {init.value()}, {member_type}* %{self.scope.temp_register}\n"
+                llvm_ir += f"store {member_type} {init.llvm_value()}, {member_type}* %{self.scope.temp_register}\n"
                 self.scope.temp_register += 1
             return llvm_ir
         last_temp_register = self.scope.temp_register
         llvm_ir = ""
         identifier_name = self.identifier()._generateLLVMIR()
-        llvm_type = CTypeToLLVMType(self.type())
+        llvm_type = c2llvm_type(self.type())
         if len(self.children) > 2:
             value_node = self.children[2]
             if isinstance(value_node, ASTConstantNode):
-                value = value_node.value()
-                if llvm_type == "float":
-                    # Write value in scientific notation
-                    value = format_float(str(value))
+                value = value_node.llvm_value()
             else:
                 value = "%" + str(last_temp_register)
         else:
@@ -706,7 +792,7 @@ class ASTIfStmtNode(ASTBaseNode):
         self.false_label = None
         self.finish_label = None
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
 
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
@@ -717,7 +803,7 @@ class ASTIfConditionNode(ASTBaseNode):
         super(ASTIfConditionNode, self).__init__()
         self.name = "IfCond"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         cond_register = self.scope.temp_register
         self.parent.cond_register = f"%{cond_register}"
         self.parent.true_label = f"IfTrue{cond_register}"
@@ -733,12 +819,12 @@ class ASTIfTrueNode(ASTBaseNode):
         super(ASTIfTrueNode, self).__init__()
         self.name = "IfTrue"
 
-    def generateLLVMIRPrefix(self):
+    def enter_llvm_text(self):
 
         llvmir = f"\n{self.parent.true_label}:\n"
         return llvmir
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
 
         llvmir = f"br label %{self.parent.finish_label}\n"
         return llvmir
@@ -749,12 +835,12 @@ class ASTIfFalseNode(ASTBaseNode):
         super(ASTIfFalseNode, self).__init__()
         self.name = "IfFalse"
 
-    def generateLLVMIRPrefix(self):
+    def enter_llvm_text(self):
 
         llvmir = f"\n{self.parent.false_label}:\n"
         return llvmir
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
 
         llvmir = f"br label %{self.parent.finish_label}\n"
         return llvmir
@@ -808,13 +894,13 @@ class ASTReturnNode(ASTBaseNode):
         super(ASTReturnNode, self).__init__()
         self.c_idx = c_idx
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
 
         llvmir = ""
         return_value = ""
-        return_type = CTypeToLLVMType(self.children[0].type())
+        return_type = c2llvm_type(self.children[0].type())
         if isinstance(self.children[0], ASTConstantNode):
-            return_value = self.children[0].value()
+            return_value = self.children[0].llvm_value()
         elif isinstance(self.children[0], ASTIdentifierNode):
             ID_node = self.children[0]
             # Load dereferenced value into temp register
@@ -823,7 +909,7 @@ class ASTReturnNode(ASTBaseNode):
             return_value = f"%{self.scope.temp_register}"
             self.scope.temp_register += 1
         else:
-            return_value = self.children[0].scope.temp_register
+            return_value = f"%{self.children[0].scope.temp_register - 1}"
         
         llvmir += f"ret {return_type} {return_value}\n"
         return llvmir
@@ -845,7 +931,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
         super(ASTFunctionDefinitionNode, self).__init__()
         self.name = "FuncDef"
 
-    def generateLLVMIRPrefix(self):
+    def enter_llvm_text(self):
         type_specifier = self.returnType()._generateLLVMIR()
         identifier_name = self.identifier()._generateLLVMIR()
         has_params = isinstance(self.children[2], ASTParameterTypeList)
@@ -860,7 +946,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
                     ident = identifier_node.identifier
                 else:
                     ident = identifier_node.identifier().identifier
-                type_spec = CTypeToLLVMType(type_node.type())
+                type_spec = c2llvm_type(type_node.type())
                 arg_decl += f"%{self.scope.temp_register} = alloca {type_spec}\n"
                 arg_decl += f"store {type_spec} %{i}, {type_spec}* %{self.scope.temp_register}\n"
                 self.scope.lookup(ident).register = f"%{self.scope.temp_register}"
@@ -872,7 +958,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
 
         return f"define {type_specifier} {identifier_name} {arg_list} {{\n{arg_decl}"
 
-    def generateLLVMIRPostfix(self):
+    def exit_llvm_text(self):
         return "}\n"
 
     def returnType(self):
@@ -912,7 +998,7 @@ class ASTTypeSpecifierNode(ASTBaseNode):
         self.name = "Type:" + str(tspec)
 
     def _generateLLVMIR(self):
-        return CTypeToLLVMType(self.tspec)
+        return c2llvm_type(self.tspec)
 
     def type(self):
         return self.tspec

@@ -1,14 +1,10 @@
+int math(int a, int b, int c) {
+    return a + b * c;
+}
+
 int main() {
-    int a;
-    
-    
-    if (a > 3) {
-        a = 1;
-    } else if (a > 5) {
-        a = 0;
-    } else {
-        a = -1;
-    }
-    return 0;
+    int a = 3;
+    int b = 4;
+    return math(a, 4 + 5, 34 * 6);
 }
 
