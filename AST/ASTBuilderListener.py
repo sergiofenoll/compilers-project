@@ -228,6 +228,82 @@ class ASTBuilder(CListener):
     def exitAssignment(self, ctx:CParser.AssignmentContext):
         self.current_node = self.current_node.parent
 
+    def enterAssignmentMul(self, ctx:CParser.AssignmentMulContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentMul(self, ctx:CParser.AssignmentMulContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTMultiplicationNode(c_idx = 1)
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTDivisionNode(c_idx = 1)
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTAdditionNode()
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentSub(self, ctx:CParser.AssignmentSubContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentSub(self, ctx:CParser.AssignmentSubContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTSubtractionNode()
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
     def enterMultiplication(self, ctx:CParser.MultiplicationContext):
         node = AST.ASTMultiplicationNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node

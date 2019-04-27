@@ -114,7 +114,7 @@ def main(argv):
         walker.walk(builder, tree)
     except Exception as e:
         logging.error(f"{type(e)}: {e}")
-        exit()
+        raise e
 
     type_checking(ast)
     optimise_ast(ast)
