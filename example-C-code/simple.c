@@ -1,15 +1,11 @@
+#include <stdio.h>
 
 int main() {
-
-    int a = 3;
-    
-    for (int i = 0; i < 3; i = i + 1) {
-        a = a - 1;
-        if (a == 1) {
-            break;
-        }
-    }
-    
-    return a;
+    int a = 5;
+//    int *ptr_to_a = &a;
+//    int b = *ptr_to_a;
+    int b = a;
+    printf("%d\n", a);
+    printf("%d\n", b);
+    return 0;
 }
-

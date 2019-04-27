@@ -93,7 +93,7 @@ class STTNode:
 
 
 class STTEntry:
-    def __init__(self, identifier, type_desc, args=None, value=None, used=False):
+    def __init__(self, identifier, type_desc, args=None, value=None, used=False, register=None):
         self.identifier = identifier
         self.type_desc = type_desc
         self.args = args or []
@@ -101,7 +101,7 @@ class STTEntry:
         self.used = used
 
         # LLVM register maintenance
-        self.register = None
+        self.register = register
         self.aux_register = None  # Used by arrays with expressions, required by LLVM
         self.aux_type = None
 

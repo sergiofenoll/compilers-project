@@ -1,8 +1,11 @@
+import logging
 import struct
 
 
 def c2llvm_type(c_type):
-    if "int" in c_type:
+    if c_type == "...":
+        ir_type = "..."
+    elif "int" in c_type:
         ir_type = "i32" + "*" * c_type.count("*")
     elif "char" in c_type:
         ir_type ="i8" + "*" * c_type.count("*")
@@ -48,12 +51,12 @@ def generate_llvm_expr(node, op):
 
     # Set up 'naive' lhs & rhs using NodeType
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
-        lhs = f"%{node.scope.temp_register}"
+        lhs = f"%{node.scope.temp_register - 1}"
     elif not isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
-        rhs = f"%{node.scope.temp_register}"
+        rhs = f"%{node.scope.temp_register - 1}"
     elif isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
         lhs = f"%{node.scope.temp_register - 2}"
-        rhs = f"%{node.scope.temp_register}"
+        rhs = f"%{node.scope.temp_register - 1}"
 
     if isinstance(node.left(), ASTConstantNode):
         lhs = node.left().llvm_value()
@@ -69,7 +72,7 @@ def generate_llvm_expr(node, op):
         rhs = node.right().llvm_value()
     elif isinstance(node.right(), ASTIdentifierNode):
         # RHS should contain dereferenced value of the variable
-        ID_register = node.scope.lookup(node.left().identifier).register
+        ID_register = node.scope.lookup(node.right().identifier).register
         rhs = f"%{node.scope.temp_register}"
         rhs_type = c2llvm_type(r_type)
         llvmir += f"{rhs} = load {rhs_type}, {rhs_type}* {ID_register}\n"
@@ -347,11 +350,12 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
         if isinstance(self.indexer(), ASTConstantNode):
             idx = self.indexer().llvm_value()
         else:
-            idx = self.scope.temp_register
+            idx = self.scope.temp_register - 1
         llvm_ir = f"%{self.scope.temp_register} = getelementptr {array_type}, {array_type}* {array_register}, i32 0, i32 {idx}\n"
         temp_reg = self.scope.temp_register
         self.scope.temp_register += 1
         llvm_ir += f"%{self.scope.temp_register} = load {array_member_type}, {array_member_type}* %{temp_reg}\n"
+        self.scope.temp_register += 1
         return llvm_ir
 
 
@@ -370,24 +374,25 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         register = self.scope.temp_register
         self.scope.temp_register += 1
 
-        function_register = self.scope.lookup(self.identifier().identifier).register
+        entry = self.scope.lookup(self.identifier().identifier)
+        arg_types = [c2llvm_type(tspec) for tspec in entry.args]
+        function_register = entry.register
         function_type = c2llvm_type(self.type())
 
-        arguments = list()
+        args = list()
         expr_arg_count = sum(isinstance(x, ASTExpressionNode) for x in self.arguments())
         expr_idx = 0
         for arg in self.arguments():
             tspec = c2llvm_type(arg.type())
             if isinstance(arg, ASTConstantNode):
-                arguments.append(f"{tspec} {arg.llvm_value()}")
+                args.append(f"{tspec} {arg.llvm_value()}")
             elif isinstance(arg, ASTIdentifierNode):
                 entry = self.scope.lookup(arg.identifier)
-                arguments.append(f"{tspec} {entry.register}")
+                args.append(f"{tspec} {entry.register}")
             elif isinstance(arg, ASTExpressionNode):
-                arguments.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
+                args.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
                 expr_idx += 1
-
-        return f"%{register} = call {function_type} {function_register}({', '.join(arguments)})\n"
+        return f"%{register} = call {function_type} ({', '.join(arg_types)}) {function_register}({', '.join(args)})\n"
 
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
@@ -465,17 +470,36 @@ class ASTLogicalNotNode(ASTUnaryExpressionNode):
         return None
 
 
-class ASTIndirection(ASTUnaryExpressionNode):
+class ASTIndirectionNode(ASTUnaryExpressionNode):
     def __init__(self):
-        super(ASTIndirection, self).__init__()
+        super(ASTIndirectionNode, self).__init__()
 
     def type(self):
-        if "*" not in self.identifier().type():
-            # TODO: Error, cannot apply indirection operator to not pointer
-            print("Error: cannot apply indirection operator to not pointer")
+        if self.identifier().type()[-1] != "*":
+            logging.error(
+                f"Type mismatch: Cannot apply indirection operator * to \
+                variable {self.identifier()} because it is not a pointer")
             exit()
         else:
             return self.identifier().type()[:-1]
+
+    def exit_llvm_text(self):
+        temp_register = self.scope.temp_register
+        self.scope.temp_register += 1
+        return f"store {c2llvm_type(self.identifier().type())} %{temp_register - 1}, {c2llvm_type(self.type())} %{temp_register}\n"
+
+
+class ASTAddressOfNode(ASTUnaryExpressionNode):
+    def __init__(self):
+        super(ASTAddressOfNode, self).__init__()
+
+    def type(self):
+        return self.identifier().type() + "*"
+
+    def exit_llvm_text(self):
+        temp_register = self.scope.temp_register
+        self.scope.temp_register += 1
+        return f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} %{temp_register - 1}\n"
 
 
 class ASTCastNode(ASTUnaryExpressionNode):
@@ -487,8 +511,7 @@ class ASTCastNode(ASTUnaryExpressionNode):
 
     def type(self):
         if "*" in self.children[0].type():
-            # TODO: Error, cannot cast to pointer type
-            print("ERROR: cannot cast to pointer type")
+            logging.error(f"Type mismatch: Cannot cast variable {self.identifier()} to pointer type")
             exit()
         else:
             return self.children[0].type()
@@ -598,7 +621,7 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
             self = None
         elif value and int(value) == 0:
             # Division by 0: warn user
-            print("[WARNING] Division by 0.")
+            logging.warning("Division by 0")
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fdiv" if self.type() == "float" else "sdiv")
@@ -749,7 +772,7 @@ class ASTDeclarationNode(ASTBaseNode):
 
         if self.scope.parent is None:
             # Global register
-            return f"{register} = global {llvm_type}"
+            return f"{register} = global {llvm_type}\n"
 
         return f"{register} = alloca {llvm_type}\n"
 
@@ -1172,7 +1195,7 @@ class ASTReturnNode(ASTBaseNode):
         # Implicit cast
         if return_type != function_return_type:
             llvmir += generate_llvm_impl_cast(self, return_value, function_return_type) + "\n"
-            return_value = f"%{self.scope.temp_register-1}"
+            return_value = f"%{self.scope.temp_register - 1}"
         
         llvmir += f"ret {function_return_type} {return_value}\n"
         return llvmir
@@ -1181,7 +1204,6 @@ class ASTReturnNode(ASTBaseNode):
         # Prune siblings that come after this return
         if self.c_idx is not None:
             self.parent.children = self.parent.children[:self.c_idx+1]
-
 
     def type(self):
         return self.children[0].type()

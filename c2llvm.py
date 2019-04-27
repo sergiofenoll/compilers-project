@@ -1,11 +1,14 @@
 import os
 import sys
+import logging
 import AST.AST as AST
 import AST.STT as STT
 from AST.ASTBuilderListener import ASTBuilder
 from antlr4 import *
 from parser.CLexer import CLexer
 from parser.CParser import CParser
+
+logging.basicConfig(format='[%(levelname)s] %(message)s')
 
 
 def optimise_ast(ast):
@@ -65,46 +68,18 @@ def type_checking(ast):
 
     while stack:
         node = stack.pop()
+        node.type()
         for child in node.children:
             stack.append(child)
 
 
-def generate_test_output(test_dir = "./testfiles/happy-day", output_dir = './testfiles/output'):
-    # Compiles all files and generates output
-    import os
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    for filename in os.listdir(test_dir):
-        output_prefix = os.path.join(output_dir, filename)
-        fpath = os.path.join(test_dir, filename)
-        print(f"[TESTS] Generating output for {fpath}")
-        
-        # Generate parse tree, AST, STT and LLVM IR
-        file_input = FileStream(fpath)
-        lexer = CLexer(file_input)
-        stream = CommonTokenStream(lexer)
-        parser = CParser(stream)
-
-        tree = parser.compilationUnit()
-
-        stt = STT.STTNode()
-        ast = AST.ASTBaseNode("Root", stt)
-
-        builder = ASTBuilder(ast)
-        walker = ParseTreeWalker()
-        walker.walk(builder, tree)
-
-        type_checking(ast)
-        optimise_ast(ast)
-        ast.generateDot(open(f"{output_prefix}-ast.dot", "w"))
-        stt.generateDot(open(f"{output_prefix}-stt.dot", "w"))
-        generate_llvm_ir(ast, open(f"{output_prefix}-llvm_ir.ll", "w"))
-
-
 def main(argv):
-    input_filepath = argv[1]
+    input_filepath = None
+    try:
+        input_filepath = argv[1]
+    except IndexError:
+        logging.error("No C source files provided")
+        exit()
 
     try:
         output_dir = os.path.dirname(argv[2])
@@ -118,8 +93,13 @@ def main(argv):
     output_ast = os.path.join(output_dir, output_filename + ".ast.dot")
     output_stt = os.path.join(output_dir, output_filename + ".stt.dot")
 
-    file_input = FileStream(input_filepath)
-    lexer = CLexer(file_input)
+    input_stream = None
+    try:
+        input_stream = FileStream(input_filepath)
+    except FileNotFoundError:
+        logging.error(f"File {input_filepath} was not found")
+        exit()
+    lexer = CLexer(input_stream)
     stream = CommonTokenStream(lexer)
     parser = CParser(stream)
 
@@ -135,11 +115,12 @@ def main(argv):
     type_checking(ast)
     optimise_ast(ast)
 
-    ast.generateDot(open("ast.dot", "w"))
-    stt.generateDot(open("stt.dot", "w"))
-    generate_llvm_ir(ast, open("ir.ll", "w"))
-
-    #generate_test_output()
+    with open(output_ast, "w") as f:
+        ast.generateDot(f)
+    with open(output_stt, "w") as f:
+        stt.generateDot(f)
+    with open(output_llvm, "w") as f:
+        generate_llvm_ir(ast, f)
 
 
 if __name__ == '__main__':
