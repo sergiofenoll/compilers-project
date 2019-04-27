@@ -48,12 +48,12 @@ def generate_llvm_expr(node, op):
 
     # Set up 'naive' lhs & rhs using NodeType
     if isinstance(node.left(), ASTExpressionNode) and not isinstance(node.right(), ASTExpressionNode):
-        lhs = f"%{node.scope.temp_register}"
+        lhs = f"%{node.scope.temp_register - 1}"
     elif not isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
-        rhs = f"%{node.scope.temp_register}"
+        rhs = f"%{node.scope.temp_register - 1}"
     elif isinstance(node.left(), ASTExpressionNode) and isinstance(node.right(), ASTExpressionNode):
         lhs = f"%{node.scope.temp_register - 2}"
-        rhs = f"%{node.scope.temp_register}"
+        rhs = f"%{node.scope.temp_register - 1}"
 
     if isinstance(node.left(), ASTConstantNode):
         lhs = node.left().llvm_value()
@@ -69,7 +69,7 @@ def generate_llvm_expr(node, op):
         rhs = node.right().llvm_value()
     elif isinstance(node.right(), ASTIdentifierNode):
         # RHS should contain dereferenced value of the variable
-        ID_register = node.scope.lookup(node.left().identifier).register
+        ID_register = node.scope.lookup(node.right().identifier).register
         rhs = f"%{node.scope.temp_register}"
         rhs_type = c2llvm_type(r_type)
         llvmir += f"{rhs} = load {rhs_type}, {rhs_type}* {ID_register}\n"
@@ -347,11 +347,12 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
         if isinstance(self.indexer(), ASTConstantNode):
             idx = self.indexer().llvm_value()
         else:
-            idx = self.scope.temp_register
+            idx = self.scope.temp_register - 1
         llvm_ir = f"%{self.scope.temp_register} = getelementptr {array_type}, {array_type}* {array_register}, i32 0, i32 {idx}\n"
         temp_reg = self.scope.temp_register
         self.scope.temp_register += 1
         llvm_ir += f"%{self.scope.temp_register} = load {array_member_type}, {array_member_type}* %{temp_reg}\n"
+        self.scope.temp_register += 1
         return llvm_ir
 
 
@@ -749,7 +750,7 @@ class ASTDeclarationNode(ASTBaseNode):
 
         if self.scope.parent is None:
             # Global register
-            return f"{register} = global {llvm_type}"
+            return f"{register} = global {llvm_type}\n"
 
         return f"{register} = alloca {llvm_type}\n"
 
@@ -1172,7 +1173,7 @@ class ASTReturnNode(ASTBaseNode):
         # Implicit cast
         if return_type != function_return_type:
             llvmir += generate_llvm_impl_cast(self, return_value, function_return_type) + "\n"
-            return_value = f"%{self.scope.temp_register-1}"
+            return_value = f"%{self.scope.temp_register - 1}"
         
         llvmir += f"ret {function_return_type} {return_value}\n"
         return llvmir
