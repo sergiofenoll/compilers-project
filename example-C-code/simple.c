@@ -1,6 +1,12 @@
+#include <stdio.h>
+
+
 int main() {
 
-    char c = 97;
-    return (int) c;
+    int a = 97 + 3;
+    
+    printf("%d", a);
+    
+    return a;
 }
 

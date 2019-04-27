@@ -52,8 +52,9 @@ class ASTBuilder(CListener):
         includes_stdio = True if ctx.IncludeStdIO() else False
 
         node = AST.ASTCompilationUnitNode(includes_stdio)
-        node.children = self.current_node.children
+        node.parent = self.current_node
         node.scope = self.current_node.scope
+        self.current_node.children.append(node)
         self.current_node = node
 
         if includes_stdio:
