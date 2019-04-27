@@ -1,6 +1,6 @@
 int main() {
 
-    int a = 2;
-    a += 4;
+    char c = 97;
+    return (int) c;
 }
 

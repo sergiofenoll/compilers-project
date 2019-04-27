@@ -646,7 +646,7 @@ class ASTModuloNode(ASTBinaryExpressionNode):
 
     def type(self):
         if self.left().type() == "float" or self.right().type() == "float":
-            print("Can't do modulo on floating types")
+            logging.error("Can't do modulo on floating types")
             exit()
 
     def exit_llvm_text(self):
@@ -816,7 +816,7 @@ class ASTDeclarationNode(ASTBaseNode):
             value_node = self.children[2]
             if isinstance(value_node, ASTConstantNode):
                 value = value_node.llvm_value()
-                if llvm_type == "i8":
+                if llvm_type == "i8" and str(value)[0] == "'":
                     # Cast character to Unicode value
                     value = str(ord(value[1])) # Character of form: 'c'
             else:

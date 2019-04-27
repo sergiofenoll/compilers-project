@@ -215,7 +215,6 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitCast(self, ctx:CParser.CastContext):
-        print(self.current_node.identifier().identifier)
         self.current_node = self.current_node.parent
 
     def enterAssignment(self, ctx:CParser.AssignmentContext):
