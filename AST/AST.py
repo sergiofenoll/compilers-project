@@ -1,8 +1,11 @@
+import logging
 import struct
 
 
 def c2llvm_type(c_type):
-    if "int" in c_type:
+    if c_type == "...":
+        ir_type = "..."
+    elif "int" in c_type:
         ir_type = "i32" + "*" * c_type.count("*")
     elif "char" in c_type:
         ir_type ="i8" + "*" * c_type.count("*")
@@ -371,24 +374,25 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         register = self.scope.temp_register
         self.scope.temp_register += 1
 
-        function_register = self.scope.lookup(self.identifier().identifier).register
+        entry = self.scope.lookup(self.identifier().identifier)
+        arg_types = [c2llvm_type(tspec) for tspec in entry.args]
+        function_register = entry.register
         function_type = c2llvm_type(self.type())
 
-        arguments = list()
+        args = list()
         expr_arg_count = sum(isinstance(x, ASTExpressionNode) for x in self.arguments())
         expr_idx = 0
         for arg in self.arguments():
             tspec = c2llvm_type(arg.type())
             if isinstance(arg, ASTConstantNode):
-                arguments.append(f"{tspec} {arg.llvm_value()}")
+                args.append(f"{tspec} {arg.llvm_value()}")
             elif isinstance(arg, ASTIdentifierNode):
                 entry = self.scope.lookup(arg.identifier)
-                arguments.append(f"{tspec} {entry.register}")
+                args.append(f"{tspec} {entry.register}")
             elif isinstance(arg, ASTExpressionNode):
-                arguments.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
+                args.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
                 expr_idx += 1
-
-        return f"%{register} = call {function_type} {function_register}({', '.join(arguments)})\n"
+        return f"%{register} = call {function_type} ({', '.join(arg_types)}) {function_register}({', '.join(args)})\n"
 
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
@@ -471,12 +475,31 @@ class ASTIndirectionNode(ASTUnaryExpressionNode):
         super(ASTIndirectionNode, self).__init__()
 
     def type(self):
-        if "*" not in self.identifier().type():
-            # TODO: Error, cannot apply indirection operator to not pointer
-            print("Error: cannot apply indirection operator to not pointer")
+        if self.identifier().type()[-1] != "*":
+            logging.error(
+                f"Type mismatch: Cannot apply indirection operator * to \
+                variable {self.identifier()} because it is not a pointer")
             exit()
         else:
             return self.identifier().type()[:-1]
+
+    def exit_llvm_text(self):
+        temp_register = self.scope.temp_register
+        self.scope.temp_register += 1
+        return f"store {c2llvm_type(self.identifier().type())} %{temp_register - 1}, {c2llvm_type(self.type())} %{temp_register}\n"
+
+
+class ASTAddressOfNode(ASTUnaryExpressionNode):
+    def __init__(self):
+        super(ASTAddressOfNode, self).__init__()
+
+    def type(self):
+        return self.identifier().type() + "*"
+
+    def exit_llvm_text(self):
+        temp_register = self.scope.temp_register
+        self.scope.temp_register += 1
+        return f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} %{temp_register - 1}\n"
 
 
 class ASTCastNode(ASTUnaryExpressionNode):
@@ -488,8 +511,7 @@ class ASTCastNode(ASTUnaryExpressionNode):
 
     def type(self):
         if "*" in self.children[0].type():
-            # TODO: Error, cannot cast to pointer type
-            print("ERROR: cannot cast to pointer type")
+            logging.error(f"Type mismatch: Cannot cast variable {self.identifier()} to pointer type")
             exit()
         else:
             return self.children[0].type()
@@ -599,7 +621,7 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
             self = None
         elif value and int(value) == 0:
             # Division by 0: warn user
-            print("[WARNING] Division by 0.")
+            logging.warning("Division by 0")
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fdiv" if self.type() == "float" else "sdiv")

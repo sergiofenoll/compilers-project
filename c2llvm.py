@@ -1,11 +1,14 @@
 import os
 import sys
+import logging
 import AST.AST as AST
 import AST.STT as STT
 from AST.ASTBuilderListener import ASTBuilder
 from antlr4 import *
 from parser.CLexer import CLexer
 from parser.CParser import CParser
+
+logging.basicConfig(format='[%(levelname)s] %(message)s')
 
 
 def optimise_ast(ast):
@@ -65,15 +68,17 @@ def type_checking(ast):
 
     while stack:
         node = stack.pop()
+        node.type()
         for child in node.children:
             stack.append(child)
 
 
 def main(argv):
+    input_filepath = None
     try:
         input_filepath = argv[1]
     except IndexError:
-        print("[ERROR] No C source files provided")
+        logging.error("No C source files provided")
         exit()
 
     try:
@@ -88,10 +93,11 @@ def main(argv):
     output_ast = os.path.join(output_dir, output_filename + ".ast.dot")
     output_stt = os.path.join(output_dir, output_filename + ".stt.dot")
 
+    input_stream = None
     try:
         input_stream = FileStream(input_filepath)
     except FileNotFoundError:
-        print(f"[ERROR] File {input_filepath} was not found")
+        logging.error(f"File {input_filepath} was not found")
         exit()
     lexer = CLexer(input_stream)
     stream = CommonTokenStream(lexer)

@@ -152,6 +152,15 @@ class CListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CParser#addressOf.
+    def enterAddressOf(self, ctx:CParser.AddressOfContext):
+        pass
+
+    # Exit a parse tree produced by CParser#addressOf.
+    def exitAddressOf(self, ctx:CParser.AddressOfContext):
+        pass
+
+
     # Enter a parse tree produced by CParser#prefixDecrement.
     def enterPrefixDecrement(self, ctx:CParser.PrefixDecrementContext):
         pass

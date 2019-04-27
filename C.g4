@@ -31,6 +31,7 @@ unaryExpression:
 |	'++' unaryExpression #prefixIncrement
 |	'--' unaryExpression #prefixDecrement
 |	'*' castExpression #indirection
+|   '&' castExpression #addressOf
 |   '+' castExpression #unaryPlus
 |   '-' castExpression #unaryMinus
 |   '!' castExpression #logicalNot

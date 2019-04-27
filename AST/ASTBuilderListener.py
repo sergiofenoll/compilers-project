@@ -1,3 +1,4 @@
+import logging
 import AST.AST as AST
 import AST.STT as STT
 from parser.CParser import CParser
@@ -45,8 +46,8 @@ class ASTBuilder(CListener):
         self.current_node = node
 
         if includes_stdio:
-            self.current_node.scope.table["printf"] = STT.STTEntry("printf", "int", ["char*", "..."])
-            self.current_node.scope.table["scanf"] = STT.STTEntry("scanf", "int", ["char*", "..."])
+            self.current_node.scope.table["printf"] = STT.STTEntry("printf", "int", ["char*", "..."], register="@printf")
+            self.current_node.scope.table["scanf"] = STT.STTEntry("scanf", "int", ["char*", "..."], register="@scanf")
 
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
         identifier = str(ctx.Identifier())
@@ -60,7 +61,7 @@ class ASTBuilder(CListener):
         if STEntry:
             STEntry.used = True
         else:
-            print(f"Using undeclared variable {identifier}")
+            logging.error(f"The identifier {identifier} was used before being declared")
             exit()
 
     def enterConstant(self, ctx:CParser.ConstantContext):
@@ -182,6 +183,16 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitIndirection(self, ctx:CParser.IndirectionContext):
+        self.current_node = self.current_node.parent
+
+    def enterAddressOf(self, ctx:CParser.AddressOfContext):
+        node = AST.ASTAddressOfNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAddressOf(self, ctx:CParser.AddressOfContext):
         self.current_node = self.current_node.parent
 
     def enterCast(self, ctx:CParser.CastContext):
@@ -528,7 +539,7 @@ class ASTBuilder(CListener):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
-                print("[ERROR] Continue outside of loop body.")
+                logging.error("Keyword continue was used outside of loop body")
                 exit()
         node = AST.ASTContinueNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
@@ -546,7 +557,7 @@ class ASTBuilder(CListener):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
-                print("[ERROR] Break outside of loop body.")
+                logging.error("Keyword break was used outside of loop body")
                 exit()
         node = AST.ASTBreakNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
@@ -600,8 +611,7 @@ class ASTBuilder(CListener):
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
         else:
-            # TODO: Error about double declaration
-            print("OI CUNT, YOU DECLARED THIS VARIABLE ALREADY")
+            logging.error(f"The identifier {identifier} was redeclared")
             exit()
 
         self.current_node = self.current_node.parent
@@ -634,6 +644,5 @@ class ASTBuilder(CListener):
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
         else:
-            # TODO: Error about double declaration
-            print("OI CUNT, YOU DECLARED THIS FUNCTION ALREADY")
+            logging.error(f"The identifier {identifier} was redeclared")
             exit()
