@@ -1,10 +1,7 @@
 int main() {
 
     int a = 2;
-    int b;
-    b += a + 2;
-    b -= a + 1;
-    b *= a + 2;
-    b /= a + 2;
+    float b = 3.1;
+    int c = a + b;
 }
 

@@ -93,7 +93,7 @@ def generate_llvm_expr(node, op):
     return llvmir
 
 def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
-    # Handles implicit cast to destination type
+    # Handles implicit cast to destination type (given as LLVMIR type)
 
     llvmir = ""
     origin_type = c2llvm_type(origin_node.type())
@@ -103,6 +103,7 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
         cast_instruction = "zext"
     elif origin_type == "float" and dest_type == "i32":
         cast_instruction = "fptosi"
+        logging.warning(f"Implicit conversion from float to int")
     elif origin_type == "i32" and dest_type == "float":
         cast_instruction = "sitofp"
     elif origin_type == "i8" and dest_type == "float":
@@ -511,7 +512,7 @@ class ASTCastNode(ASTUnaryExpressionNode):
 
     def type(self):
         if "*" in self.children[0].type():
-            logging.error(f"Type mismatch: Cannot cast variable {self.identifier()} to pointer type")
+            logging.error(f"Type mismatch: Cannot cast variable '{self.identifier()}' to pointer type")
             exit()
         else:
             return self.children[0].type()
@@ -816,14 +817,15 @@ class ASTDeclarationNode(ASTBaseNode):
             value_node = self.children[2]
             if isinstance(value_node, ASTConstantNode):
                 value = value_node.llvm_value()
-                if llvm_type == "float":
-                    # Write value in scientific notation
-                    value = hexify_float(str(value))
-                elif llvm_type == "i8":
+                if llvm_type == "i8":
                     # Cast character to Unicode value
                     value = str(ord(value[1])) # Character of form: 'c'
             else:
-                value = "%" + str(last_temp_register)
+                # Account for implicit conversion
+                if(self.type() != self.children[2].type()):
+                    llvm_ir += generate_llvm_impl_cast(self.children[2], f"%{last_temp_register-1}", llvm_type)
+                    last_temp_register += 1
+                value = "%" + str(last_temp_register-1)
         else:
             # Initialise this to 0 by default
             if llvm_type == "i32" or llvm_type == "i8":
