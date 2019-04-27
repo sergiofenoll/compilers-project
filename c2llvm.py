@@ -108,9 +108,13 @@ def main(argv):
     stt = STT.STTNode()
     ast = AST.ASTBaseNode("Root", stt)
 
-    builder = ASTBuilder(ast)
-    walker = ParseTreeWalker()
-    walker.walk(builder, tree)
+    try:
+        builder = ASTBuilder(ast)
+        walker = ParseTreeWalker()
+        walker.walk(builder, tree)
+    except Exception as e:
+        logging.error(f"{type(e)}: {e}")
+        exit()
 
     type_checking(ast)
     optimise_ast(ast)

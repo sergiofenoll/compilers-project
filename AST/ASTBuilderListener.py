@@ -5,6 +5,17 @@ from parser.CParser import CParser
 from parser.CListener import CListener
 
 
+def get_line_info(ctx):
+    # Returns line & column number of first token in ctx
+    # Useful for reporting errors
+
+    first_token = ctx.start
+    line = first_token.line
+    col = first_token.column
+
+    return (line, col)    
+
+
 def enter_decorate_no_scope(method):
     def decorated_enter(self, ctx):
         ast_node_name = method.__name__.replace("enter", "AST").replace("exit", "AST") + "Node"
@@ -61,7 +72,8 @@ class ASTBuilder(CListener):
         if STEntry:
             STEntry.used = True
         else:
-            logging.error(f"The identifier {identifier} was used before being declared")
+            line_info = get_line_info(ctx)
+            logging.error(f"line {line_info[0]}:{line_info[1]} The identifier '{identifier}'' was used before being declared")
             exit()
 
     def enterConstant(self, ctx:CParser.ConstantContext):
@@ -539,7 +551,8 @@ class ASTBuilder(CListener):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
-                logging.error("Keyword continue was used outside of loop body")
+                line_info = get_line_info(ctx)
+                logging.error(f"line {line_info[0]}:{line_info[1]} Keyword continue was used outside of loop body")
                 exit()
         node = AST.ASTContinueNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
@@ -557,7 +570,8 @@ class ASTBuilder(CListener):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
-                logging.error("Keyword break was used outside of loop body")
+                line_info = get_line_info(ctx)
+                logging.error(f"line {line_info[0]}:{line_info[1]} Keyword break was used outside of loop body")
                 exit()
         node = AST.ASTBreakNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
@@ -611,7 +625,8 @@ class ASTBuilder(CListener):
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
         else:
-            logging.error(f"The identifier {identifier} was redeclared")
+            line_info = get_line_info(ctx)
+            logging.error(f"line {line_info[0]}:{line_info[1]} The variable '{identifier}' was redeclared")
             exit()
 
         self.current_node = self.current_node.parent
@@ -644,5 +659,6 @@ class ASTBuilder(CListener):
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
         else:
-            logging.error(f"The identifier {identifier} was redeclared")
+            line_info = get_line_info(ctx)
+            logging.error(f"line {line_info[0]}:{line_info[1]} The function '{identifier}' was redeclared")
             exit()
