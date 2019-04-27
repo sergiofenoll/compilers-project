@@ -175,7 +175,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterIndirection(self, ctx:CParser.IndirectionContext):
-        node = AST.ASTIndirection()
+        node = AST.ASTIndirectionNode()
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)

@@ -466,9 +466,9 @@ class ASTLogicalNotNode(ASTUnaryExpressionNode):
         return None
 
 
-class ASTIndirection(ASTUnaryExpressionNode):
+class ASTIndirectionNode(ASTUnaryExpressionNode):
     def __init__(self):
-        super(ASTIndirection, self).__init__()
+        super(ASTIndirectionNode, self).__init__()
 
     def type(self):
         if "*" not in self.identifier().type():
@@ -1182,7 +1182,6 @@ class ASTReturnNode(ASTBaseNode):
         # Prune siblings that come after this return
         if self.c_idx is not None:
             self.parent.children = self.parent.children[:self.c_idx+1]
-
 
     def type(self):
         return self.children[0].type()
