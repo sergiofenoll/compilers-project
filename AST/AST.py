@@ -38,6 +38,7 @@ def get_expression_type(node):
     elif l_type == "bool" or r_type == "bool":
         return "bool"
 
+
 def generate_llvm_expr(node, op):
     llvmir = ""
     expr_type = get_expression_type(node)
@@ -91,6 +92,7 @@ def generate_llvm_expr(node, op):
     llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
     node.scope.temp_register += 1
     return llvmir
+
 
 def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
     # Handles implicit cast to destination type
@@ -333,6 +335,20 @@ class ASTUnaryExpressionNode(ASTExpressionNode):
     def type(self):
         return self.identifier().type()
 
+    def _generate_llvm_expr(self, op=None):
+        reg = ""
+        operand = self.identifier()
+        # llvm_type = c2llvm_type(self.type())
+
+        if isinstance(operand, ASTExpressionNode):
+            reg = f"%{self.scope.temp_register - 1}"
+        elif isinstance(operand, ASTConstantNode):
+            reg = operand.llvm_value()
+        elif isinstance(operand, ASTIdentifierNode):
+            # reg should contain dereferenced value of the variable
+            reg = self.scope.lookup(operand.identifier).register
+
+        return reg
 
 class ASTArrayAccessNode(ASTUnaryExpressionNode):
     def __init__(self):
@@ -486,7 +502,7 @@ class ASTIndirectionNode(ASTUnaryExpressionNode):
     def exit_llvm_text(self):
         temp_register = self.scope.temp_register
         self.scope.temp_register += 1
-        return f"store {c2llvm_type(self.identifier().type())} %{temp_register - 1}, {c2llvm_type(self.type())} %{temp_register}\n"
+        return f"store {c2llvm_type(self.identifier().type())} {self._generate_llvm_expr()}, {c2llvm_type(self.type())}* %{temp_register}\n"
 
 
 class ASTAddressOfNode(ASTUnaryExpressionNode):
@@ -499,7 +515,7 @@ class ASTAddressOfNode(ASTUnaryExpressionNode):
     def exit_llvm_text(self):
         temp_register = self.scope.temp_register
         self.scope.temp_register += 1
-        return f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} %{temp_register - 1}\n"
+        return f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} {self._generate_llvm_expr()}\n"
 
 
 class ASTCastNode(ASTUnaryExpressionNode):
