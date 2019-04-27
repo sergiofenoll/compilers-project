@@ -26,7 +26,7 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
 
 ### LLVM:
 - Types: `char`, `float`, `int`
-- Reserved words: `if` `else`, `return`
+- Reserved words: `if` `else`, `return`, `while`, `for`, `break`, `continue`
 - Functions:
   - Function definitions
 - Local and global variables
@@ -34,7 +34,7 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
   - Arithmetic operators: `+`, `-`, `*`, `/`, `%`
   - Comparison operators: `>`, `<`, `!=`, `==`, `>=`, `<=`
   - Logical operators: `&&`, `||`
-  - Assignment operators: `=`
+  - Assignment operators: `=`, `+=`, `-=`, `*=`, `/=`
 - Arrays:
   - 1-dimensional arrays
   - Array initialization (using initializer lists `{}`)

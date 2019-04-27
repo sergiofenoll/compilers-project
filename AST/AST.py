@@ -95,7 +95,7 @@ def generate_llvm_expr(node, op):
 
 
 def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
-    # Handles implicit cast to destination type
+    # Handles implicit cast to destination type (given as LLVMIR type)
 
     llvmir = ""
     origin_type = c2llvm_type(origin_node.type())
@@ -105,6 +105,7 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
         cast_instruction = "zext"
     elif origin_type == "float" and dest_type == "i32":
         cast_instruction = "fptosi"
+        logging.warning(f"Implicit conversion from float to int")
     elif origin_type == "i32" and dest_type == "float":
         cast_instruction = "sitofp"
     elif origin_type == "i8" and dest_type == "float":
@@ -185,12 +186,12 @@ class ASTBaseNode:
 class ASTCompilationUnitNode(ASTBaseNode):
     def __init__(self, includes_stdio=False):
         super(ASTCompilationUnitNode, self).__init__()
-        self.name = "Root"
+        self.name = "CompilationUnit"
         self.includes_stdio = includes_stdio
 
     def enter_llvm_text(self):
         if self.includes_stdio:
-            return "declare i32 @printf(i8*, ...)\ndeclare i32 @scanf(i8*, ...)\n"
+            return "declare i32 @printf(i8*, ...)\ndeclare i32 @scanf(i8*, ...)\n\n"
         else:
             return ""
 
@@ -275,6 +276,8 @@ class ASTStringLiteralNode(ASTBaseNode):
         super(ASTStringLiteralNode, self).__init__()
         self.__value = value
         self.name = "String literal:" + str(value.replace('"', '\\"'))
+        self.size = None
+        self.location = None
 
     def type(self):
         return "char*"
@@ -313,10 +316,14 @@ class ASTStringLiteralNode(ASTBaseNode):
                     s = s[:slash] + "\\22" + s[slash:]
             return s, s_len
 
-        register = self.scope.temp_register
         cleaned_string, length = clean_string(self.__value)
-        self.scope.temp_register += 1
-        return f'@{register} = private unnamed_addr constant [{length + 1} x i8] c"{cleaned_string}\00"\n'
+        global_scope_node = self
+        while global_scope_node.scope.parent is not None:
+            global_scope_node = global_scope_node.parent 
+        self.size = f"[{length + 1} x i8]"
+        self.location = f"@str{global_scope_node.scope.temp_register}"
+        global_scope_node.scope.temp_register += 1
+        return f'{self.location} = private unnamed_addr constant {self.size} c"{cleaned_string}\\00"\n'
 
 
 class ASTExpressionNode(ASTBaseNode):
@@ -378,7 +385,7 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
 class ASTFunctionCallNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTFunctionCallNode, self).__init__()
-        self.name = "()"
+        self.name = "FunctionCall"
 
     def arguments(self):
         return self.children[1:]
@@ -388,7 +395,6 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
 
     def exit_llvm_text(self):
         register = self.scope.temp_register
-        self.scope.temp_register += 1
 
         entry = self.scope.lookup(self.identifier().identifier)
         arg_types = [c2llvm_type(tspec) for tspec in entry.args]
@@ -398,17 +404,32 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         args = list()
         expr_arg_count = sum(isinstance(x, ASTExpressionNode) for x in self.arguments())
         expr_idx = 0
+        llvmir = ""
         for arg in self.arguments():
             tspec = c2llvm_type(arg.type())
             if isinstance(arg, ASTConstantNode):
                 args.append(f"{tspec} {arg.llvm_value()}")
             elif isinstance(arg, ASTIdentifierNode):
                 entry = self.scope.lookup(arg.identifier)
-                args.append(f"{tspec} {entry.register}")
+                # Load value of identifier into temp. register
+                llvmir += f"%{register} = load {tspec}, {tspec}* {entry.register}\n"
+                args.append(f"{tspec} %{register}")
+                register += 1
             elif isinstance(arg, ASTExpressionNode):
                 args.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
                 expr_idx += 1
-        return f"%{register} = call {function_type} ({', '.join(arg_types)}) {function_register}({', '.join(args)})\n"
+            elif isinstance(arg, ASTStringLiteralNode):
+                # Load string into temp. register and then add to arguments
+                llvmir += f"%{register} = getelementptr {arg.size}, {arg.size}* {arg.location}, i32 0, i32 0\n"
+                register += 1
+                args.append(f"{tspec} %{register-1}")
+        reg_assign = ""
+        if function_type != "void":
+            reg_assign = f"%{register} = "
+            register += 1
+        llvmir += f"{reg_assign}call {function_type} ({', '.join(arg_types)}) {function_register}({', '.join(args)})\n"
+        self.scope.temp_register = register
+        return llvmir
 
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
@@ -451,8 +472,7 @@ class ASTUnaryMinusNode(ASTUnaryExpressionNode):
 
     def type(self):
         if "*" in self.identifier().type():
-            # TODO: Error, cannot apply unary minus operator to pointer
-            print("Error: cannot apply unary minus operator to pointer")
+            logging.error("Cannot apply unary minus operator to pointer")
             exit()
         else:
             return self.identifier().type()
@@ -527,7 +547,7 @@ class ASTCastNode(ASTUnaryExpressionNode):
 
     def type(self):
         if "*" in self.children[0].type():
-            logging.error(f"Type mismatch: Cannot cast variable {self.identifier()} to pointer type")
+            logging.error(f"Type mismatch: Cannot cast variable '{self.identifier()}' to pointer type")
             exit()
         else:
             return self.children[0].type()
@@ -653,7 +673,7 @@ class ASTModuloNode(ASTBinaryExpressionNode):
         value = self.right().value()
         if value and int(value) == 1:
             # Always returns 0, so replace with constant
-            new_node = ASTConstantNode(0)
+            new_node = ASTConstantNode(0, "int")
             new_node.parent = self.parent
             new_node.scope = self.scope
             self.parent.children.pop(self.c_idx)
@@ -662,7 +682,7 @@ class ASTModuloNode(ASTBinaryExpressionNode):
 
     def type(self):
         if self.left().type() == "float" or self.right().type() == "float":
-            print("Can't do modulo on floating types")
+            logging.error("Can't do modulo on floating types")
             exit()
 
     def exit_llvm_text(self):
@@ -832,14 +852,15 @@ class ASTDeclarationNode(ASTBaseNode):
             value_node = self.children[2]
             if isinstance(value_node, ASTConstantNode):
                 value = value_node.llvm_value()
-                if llvm_type == "float":
-                    # Write value in scientific notation
-                    value = hexify_float(str(value))
-                elif llvm_type == "i8":
+                if llvm_type == "i8" and str(value)[0] == "'":
                     # Cast character to Unicode value
                     value = str(ord(value[1])) # Character of form: 'c'
             else:
-                value = "%" + str(last_temp_register)
+                # Account for implicit conversion
+                if(self.type() != self.children[2].type()):
+                    llvm_ir += generate_llvm_impl_cast(self.children[2], f"%{last_temp_register-1}", llvm_type)
+                    last_temp_register += 1
+                value = "%" + str(last_temp_register-1)
         else:
             # Initialise this to 0 by default
             if llvm_type == "i32" or llvm_type == "i8":
@@ -852,7 +873,7 @@ class ASTDeclarationNode(ASTBaseNode):
         else:
             # Global declaration
             llvm_ir += f" {value}\n"
-                
+
         return llvm_ir
 
     def optimise(self):
@@ -1193,6 +1214,9 @@ class ASTReturnNode(ASTBaseNode):
                 function_return_type = c2llvm_type(ancestor.type())
                 break
             ancestor = ancestor.parent
+        if function_return_type == "void":
+            # Doesn't return anything
+            return "ret void\n"
 
         if isinstance(self.children[0], ASTConstantNode):
             return_value = self.children[0].value()
@@ -1256,9 +1280,8 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
                 arg_decl += f"store {type_spec} %{i}, {type_spec}* %{self.scope.temp_register}\n"
                 self.scope.lookup(ident).register = f"%{self.scope.temp_register}"
                 self.scope.temp_register += 1
-            self.scope.temp_register -= 1 # Fix for 'overcounting' and misaligning the scope counter
         else:
-            self.scope.temp_register += 1 # Don't start at %0
+            self.scope.temp_register = 1 # Don't start at %0
             arg_list = "()"
             arg_decl = ""
 

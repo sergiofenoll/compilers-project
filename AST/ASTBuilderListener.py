@@ -5,6 +5,17 @@ from parser.CParser import CParser
 from parser.CListener import CListener
 
 
+def get_line_info(ctx):
+    # Returns line & column number of first token in ctx
+    # Useful for reporting errors
+
+    first_token = ctx.start
+    line = first_token.line
+    col = first_token.column
+
+    return (line, col)    
+
+
 def enter_decorate_no_scope(method):
     def decorated_enter(self, ctx):
         ast_node_name = method.__name__.replace("enter", "AST").replace("exit", "AST") + "Node"
@@ -41,8 +52,9 @@ class ASTBuilder(CListener):
         includes_stdio = True if ctx.IncludeStdIO() else False
 
         node = AST.ASTCompilationUnitNode(includes_stdio)
-        node.children = self.current_node.children
+        node.parent = self.current_node
         node.scope = self.current_node.scope
+        self.current_node.children.append(node)
         self.current_node = node
 
         if includes_stdio:
@@ -61,7 +73,8 @@ class ASTBuilder(CListener):
         if STEntry:
             STEntry.used = True
         else:
-            logging.error(f"The identifier {identifier} was used before being declared")
+            line_info = get_line_info(ctx)
+            logging.error(f"line {line_info[0]}:{line_info[1]} The identifier '{identifier}'' was used before being declared")
             exit()
 
     def enterConstant(self, ctx:CParser.ConstantContext):
@@ -203,7 +216,6 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitCast(self, ctx:CParser.CastContext):
-        print(self.current_node.identifier().identifier)
         self.current_node = self.current_node.parent
 
     def enterAssignment(self, ctx:CParser.AssignmentContext):
@@ -214,6 +226,82 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitAssignment(self, ctx:CParser.AssignmentContext):
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentMul(self, ctx:CParser.AssignmentMulContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentMul(self, ctx:CParser.AssignmentMulContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTMultiplicationNode(c_idx = 1)
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTDivisionNode(c_idx = 1)
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTAdditionNode()
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
+        self.current_node = self.current_node.parent
+
+    def enterAssignmentSub(self, ctx:CParser.AssignmentSubContext):
+        node = AST.ASTAssignmentNode()
+        node.parent = self.current_node
+        node.scope = self.current_node.scope
+        self.current_node.children.append(node)
+        self.current_node = node
+
+    def exitAssignmentSub(self, ctx:CParser.AssignmentSubContext):
+        # Add operation with 'self'
+        idNode = self.current_node.children[0]
+        exprNode = self.current_node.children[1]
+        operationNode = AST.ASTSubtractionNode()
+        operationNode.parent = self.current_node
+        operationNode.scope = self.current_node.scope
+        operationNode.children = [idNode, exprNode]
+        self.current_node.children[1] = operationNode
+
         self.current_node = self.current_node.parent
 
     def enterMultiplication(self, ctx:CParser.MultiplicationContext):
@@ -539,7 +627,8 @@ class ASTBuilder(CListener):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
-                logging.error("Keyword continue was used outside of loop body")
+                line_info = get_line_info(ctx)
+                logging.error(f"line {line_info[0]}:{line_info[1]} Keyword continue was used outside of loop body")
                 exit()
         node = AST.ASTContinueNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
@@ -557,7 +646,8 @@ class ASTBuilder(CListener):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
-                logging.error("Keyword break was used outside of loop body")
+                line_info = get_line_info(ctx)
+                logging.error(f"line {line_info[0]}:{line_info[1]} Keyword break was used outside of loop body")
                 exit()
         node = AST.ASTBreakNode(c_idx = len(self.current_node.children))
         node.parent = self.current_node
@@ -611,7 +701,8 @@ class ASTBuilder(CListener):
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
         else:
-            logging.error(f"The identifier {identifier} was redeclared")
+            line_info = get_line_info(ctx)
+            logging.error(f"line {line_info[0]}:{line_info[1]} The variable '{identifier}' was redeclared")
             exit()
 
         self.current_node = self.current_node.parent
@@ -639,10 +730,31 @@ class ASTBuilder(CListener):
                 # Skip identifiers
                 pass
 
+        # Check for return
+        func_body_node = self.current_node.children[-1] 
+        has_return = False
+        for c in func_body_node.children:
+            if isinstance(c, AST.ASTReturnNode):
+                has_return = True
+                break
+        if not has_return:
+            line_info = get_line_info(ctx)
+            logging.warning(f"line {line_info[0]}:{line_info[1]} The function '{identifier}' doesn't return anything")
+            # Add implicit return node
+            implicit_return = AST.ASTReturnNode(len(func_body_node.children))
+            implicit_return.parent = func_body_node
+            implicit_return.scope = func_body_node.scope
+            return_cst = AST.ASTConstantNode(value=0, type_specifier=type_spec)
+            return_cst.parent = implicit_return
+            return_cst.scope = implicit_return.scope
+            implicit_return.children = [return_cst]
+            func_body_node.children.append(implicit_return)
+
         self.current_node = self.current_node.parent
 
         if identifier not in self.current_node.scope.table:
             self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
         else:
-            logging.error(f"The identifier {identifier} was redeclared")
+            line_info = get_line_info(ctx)
+            logging.error(f"line {line_info[0]}:{line_info[1]} The function '{identifier}' was redeclared")
             exit()

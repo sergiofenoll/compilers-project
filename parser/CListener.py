@@ -386,6 +386,42 @@ class CListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by CParser#assignmentMul.
+    def enterAssignmentMul(self, ctx:CParser.AssignmentMulContext):
+        pass
+
+    # Exit a parse tree produced by CParser#assignmentMul.
+    def exitAssignmentMul(self, ctx:CParser.AssignmentMulContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#assignmentDiv.
+    def enterAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
+        pass
+
+    # Exit a parse tree produced by CParser#assignmentDiv.
+    def exitAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#assignmentAdd.
+    def enterAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
+        pass
+
+    # Exit a parse tree produced by CParser#assignmentAdd.
+    def exitAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
+        pass
+
+
+    # Enter a parse tree produced by CParser#assignmentSub.
+    def enterAssignmentSub(self, ctx:CParser.AssignmentSubContext):
+        pass
+
+    # Exit a parse tree produced by CParser#assignmentSub.
+    def exitAssignmentSub(self, ctx:CParser.AssignmentSubContext):
+        pass
+
+
     # Enter a parse tree produced by CParser#expressionList.
     def enterExpressionList(self, ctx:CParser.ExpressionListContext):
         pass

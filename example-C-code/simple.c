@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+
 int main() {
     int a = 5;
     int *ptr_to_a = &a;

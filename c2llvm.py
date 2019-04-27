@@ -59,7 +59,7 @@ def generate_llvm_ir(ast, output):
 
             else:
                 break
-    output.write(data + "\n" + text)
+    output.write(str(data) + "\n" + str(text))
 
 
 def type_checking(ast):
@@ -108,19 +108,23 @@ def main(argv):
     stt = STT.STTNode()
     ast = AST.ASTBaseNode("Root", stt)
 
-    builder = ASTBuilder(ast)
-    walker = ParseTreeWalker()
-    walker.walk(builder, tree)
+    try:
+        builder = ASTBuilder(ast)
+        walker = ParseTreeWalker()
+        walker.walk(builder, tree)
+    except Exception as e:
+        logging.error(f"{type(e)}: {e}")
+        raise e
 
     type_checking(ast)
     optimise_ast(ast)
 
-    with open(output_ast, "w") as f:
-        ast.generateDot(f)
-    with open(output_stt, "w") as f:
-        stt.generateDot(f)
-    with open(output_llvm, "w") as f:
-        generate_llvm_ir(ast, f)
+    with open(output_ast, "w") as astf:
+        ast.generateDot(astf)
+    with open(output_stt, "w") as sttf:
+        stt.generateDot(sttf)
+    with open(output_llvm, mode="wt", encoding="utf-8") as irf:
+        generate_llvm_ir(ast, irf)
 
 
 if __name__ == '__main__':

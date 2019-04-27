@@ -82,7 +82,11 @@ conditionalExpression:
 
 assignmentExpression:
 	conditionalExpression #assignmentPassthrough
-|	unaryExpression ('=' | '*=' | '/=' | '%=' | '+=' | '-=') assignmentExpression #assignment
+|	unaryExpression '=' assignmentExpression #assignment
+|   unaryExpression '*=' assignmentExpression #assignmentMul
+|   unaryExpression '/=' assignmentExpression #assignmentDiv
+|   unaryExpression '+=' assignmentExpression #assignmentAdd
+|   unaryExpression '-=' assignmentExpression #assignmentSub
 ;
 
 expression:
