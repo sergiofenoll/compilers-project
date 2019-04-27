@@ -363,7 +363,7 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
 class ASTFunctionCallNode(ASTUnaryExpressionNode):
     def __init__(self):
         super(ASTFunctionCallNode, self).__init__()
-        self.name = "()"
+        self.name = "FunctionCall"
 
     def arguments(self):
         return self.children[1:]
@@ -436,8 +436,7 @@ class ASTUnaryMinusNode(ASTUnaryExpressionNode):
 
     def type(self):
         if "*" in self.identifier().type():
-            # TODO: Error, cannot apply unary minus operator to pointer
-            print("Error: cannot apply unary minus operator to pointer")
+            logging.error("Cannot apply unary minus operator to pointer")
             exit()
         else:
             return self.identifier().type()
@@ -638,7 +637,7 @@ class ASTModuloNode(ASTBinaryExpressionNode):
         value = self.right().value()
         if value and int(value) == 1:
             # Always returns 0, so replace with constant
-            new_node = ASTConstantNode(0)
+            new_node = ASTConstantNode(0, "int")
             new_node.parent = self.parent
             new_node.scope = self.scope
             self.parent.children.pop(self.c_idx)
