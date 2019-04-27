@@ -654,6 +654,26 @@ class ASTBuilder(CListener):
                 # Skip identifiers
                 pass
 
+        # Check for return
+        func_body_node = self.current_node.children[-1] 
+        has_return = False
+        for c in func_body_node.children:
+            if isinstance(c, AST.ASTReturnNode):
+                has_return = True
+                break
+        if not has_return:
+            line_info = get_line_info(ctx)
+            logging.warning(f"line {line_info[0]}:{line_info[1]} The function '{identifier}' doesn't return anything")
+            # Add implicit return node
+            implicit_return = AST.ASTReturnNode(len(func_body_node.children))
+            implicit_return.parent = func_body_node
+            implicit_return.scope = func_body_node.scope
+            return_cst = AST.ASTConstantNode(value=0, type_specifier=type_spec)
+            return_cst.parent = implicit_return
+            return_cst.scope = implicit_return.scope
+            implicit_return.children = [return_cst]
+            func_body_node.children.append(implicit_return)
+
         self.current_node = self.current_node.parent
 
         if identifier not in self.current_node.scope.table:
