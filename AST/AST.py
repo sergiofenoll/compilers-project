@@ -342,7 +342,7 @@ class ASTUnaryExpressionNode(ASTExpressionNode):
     def type(self):
         return self.identifier().type()
 
-    def _generate_llvm_expr(self, op=None):
+    def _get_operand_register(self):
         reg = ""
         operand = self.identifier()
         # llvm_type = c2llvm_type(self.type())
@@ -356,6 +356,7 @@ class ASTUnaryExpressionNode(ASTExpressionNode):
             reg = self.scope.lookup(operand.identifier).register
 
         return reg
+
 
 class ASTArrayAccessNode(ASTUnaryExpressionNode):
     def __init__(self):
@@ -394,7 +395,7 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         return ""
 
     def exit_llvm_text(self):
-        register = self.scope.temp_register
+        og_reg = register = self.scope.temp_register
 
         entry = self.scope.lookup(self.identifier().identifier)
         arg_types = [c2llvm_type(tspec) for tspec in entry.args]
@@ -416,13 +417,15 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
                 args.append(f"{tspec} %{register}")
                 register += 1
             elif isinstance(arg, ASTExpressionNode):
-                args.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
+                # We want to use the original register count because additional registers could've been made for
+                # identifiers and string literals and those would interfere
+                args.append(f"{tspec} %{og_reg - expr_arg_count + expr_idx}")
                 expr_idx += 1
             elif isinstance(arg, ASTStringLiteralNode):
                 # Load string into temp. register and then add to arguments
                 llvmir += f"%{register} = getelementptr {arg.size}, {arg.size}* {arg.location}, i32 0, i32 0\n"
                 register += 1
-                args.append(f"{tspec} %{register-1}")
+                args.append(f"{tspec} %{register - 1}")
         reg_assign = ""
         if function_type != "void":
             reg_assign = f"%{register} = "
@@ -520,9 +523,18 @@ class ASTIndirectionNode(ASTUnaryExpressionNode):
             return self.identifier().type()[:-1]
 
     def exit_llvm_text(self):
+        llvm_ir = ""
+        if not isinstance(self.identifier(), ASTIndirectionNode):
+            temp_register = self.scope.temp_register
+            llvm_ir += f"%{temp_register} = load {c2llvm_type(self.type())}*, {c2llvm_type(self.identifier().type())}* {self._get_operand_register()}\n"
+            self.scope.temp_register += 1
+
         temp_register = self.scope.temp_register
+        last_temp_register = temp_register - 1
+        llvm_ir += f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} %{last_temp_register}\n"
         self.scope.temp_register += 1
-        return f"store {c2llvm_type(self.identifier().type())} {self._generate_llvm_expr()}, {c2llvm_type(self.type())}* %{temp_register}\n"
+
+        return llvm_ir
 
 
 class ASTAddressOfNode(ASTUnaryExpressionNode):
@@ -530,12 +542,22 @@ class ASTAddressOfNode(ASTUnaryExpressionNode):
         super(ASTAddressOfNode, self).__init__()
 
     def type(self):
+        if not isinstance(self.identifier(), ASTIdentifierNode):
+            logging.error("Cannot apply address-of operator & to a non-variable")
         return self.identifier().type() + "*"
 
     def exit_llvm_text(self):
         temp_register = self.scope.temp_register
+        llvm_ir = f"%{temp_register} = alloca {c2llvm_type(self.type())}\n"
+        llvm_ir += f"store {c2llvm_type(self.identifier().type())}* {self._get_operand_register()}, {c2llvm_type(self.type())}* %{temp_register}\n"
         self.scope.temp_register += 1
-        return f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} {self._generate_llvm_expr()}\n"
+
+        last_temp_register = temp_register
+        temp_register = self.scope.temp_register
+        llvm_ir += f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.type())}* %{last_temp_register}\n"
+        self.scope.temp_register += 1
+
+        return llvm_ir
 
 
 class ASTCastNode(ASTUnaryExpressionNode):

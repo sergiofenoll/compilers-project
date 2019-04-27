@@ -3,7 +3,17 @@
 
 int main() {
     int a = 5;
-    int *ptr_to_a = &a;
-    int b = *ptr_to_a;
+    int *p = &a;
+    int **pp = &p;
+    int b = *p;
+    int c = **pp;
+
+    printf("%p\n", &a);
+    printf("%p\n", p);
+    printf("%p\n", *pp);
+
+    printf("%d\n", a);
+    printf("%d\n", b);
+    printf("%d\n", c);
     return 0;
 }
