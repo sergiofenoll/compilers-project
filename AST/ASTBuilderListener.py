@@ -57,25 +57,12 @@ class ASTBuilder(CListener):
         self.current_node.children.append(node)
         self.current_node = node
 
-        if includes_stdio:
-            self.current_node.scope.table["printf"] = STT.STTEntry("printf", "int", ["char*", "..."], register="@printf")
-            self.current_node.scope.table["scanf"] = STT.STTEntry("scanf", "int", ["char*", "..."], register="@scanf")
-
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
         identifier = str(ctx.Identifier())
         node = AST.ASTIdentifierNode(identifier)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
-
-        STEntry = self.current_node.scope.lookup(identifier)
-
-        if STEntry:
-            STEntry.used = True
-        else:
-            line_info = get_line_info(ctx)
-            logging.error(f"line {line_info[0]}:{line_info[1]} The identifier '{identifier}'' was used before being declared")
-            exit()
 
     def enterConstant(self, ctx:CParser.ConstantContext):
         if ctx.ConstantChar():
@@ -554,15 +541,6 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitParameterTypeList(self, ctx:CParser.ParameterTypeListContext):
-        if isinstance(self.current_node.parent, AST.ASTFunctionDefinitionNode):
-            for type_node, identifier_node in zip(self.current_node.children[0::2], self.current_node.children[1::2]):
-                if identifier_node.identifier not in self.current_node.scope.table:
-                    if isinstance(identifier_node, AST.ASTIdentifierNode):
-                        iden = identifier_node.identifier
-                    else:
-                        iden = identifier_node.identifier().identifier
-                    self.current_node.scope.table[iden] = STT.STTEntry(iden, type_node.type())
-
         self.current_node = self.current_node.parent
 
     def enterIterationStatement(self, ctx:CParser.IterationStatementContext):
@@ -694,17 +672,6 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitDeclaration(self, ctx:CParser.DeclarationContext):
-        # Add identifier to symbol table
-        type_spec = self.current_node.type()
-        identifier = self.current_node.identifier().identifier
-
-        if identifier not in self.current_node.scope.table:
-            self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
-        else:
-            line_info = get_line_info(ctx)
-            logging.error(f"line {line_info[0]}:{line_info[1]} The variable '{identifier}' was redeclared")
-            exit()
-
         self.current_node = self.current_node.parent
 
     def enterFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
@@ -719,16 +686,8 @@ class ASTBuilder(CListener):
         self.current_node = node
 
     def exitFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
-        # Add identifier to symbol table
         type_spec = self.current_node.returnType().tspec
         identifier = self.current_node.identifier().identifier
-        args = []
-        for arg in self.current_node.arguments():
-            try:
-                args.append(arg.tspec)
-            except AttributeError:
-                # Skip identifiers
-                pass
 
         # Check for return
         func_body_node = self.current_node.children[-1] 
@@ -751,10 +710,3 @@ class ASTBuilder(CListener):
             func_body_node.children.append(implicit_return)
 
         self.current_node = self.current_node.parent
-
-        if identifier not in self.current_node.scope.table:
-            self.current_node.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
-        else:
-            line_info = get_line_info(ctx)
-            logging.error(f"line {line_info[0]}:{line_info[1]} The function '{identifier}' was redeclared")
-            exit()

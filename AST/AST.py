@@ -1,5 +1,6 @@
 import logging
 import struct
+import AST.STT as STT
 
 
 def c2llvm_type(c_type):
@@ -176,6 +177,9 @@ class ASTBaseNode:
 
         output.write("}")
 
+    def populate_symbol_table(self):
+        pass
+
     def type(self):
         return None
 
@@ -194,6 +198,11 @@ class ASTCompilationUnitNode(ASTBaseNode):
             return "declare i32 @printf(i8*, ...)\ndeclare i32 @scanf(i8*, ...)\n\n"
         else:
             return ""
+
+    def populate_symbol_table(self):
+        if self.includes_stdio:
+            self.scope.table["printf"] = STT.STTEntry("printf", "int", ["char*", "..."], register="@printf")
+            self.scope.table["scanf"] = STT.STTEntry("scanf", "int", ["char*", "..."], register="@scanf")
 
 
 class ASTIdentifierNode(ASTBaseNode):
@@ -237,6 +246,15 @@ class ASTIdentifierNode(ASTBaseNode):
                 self.parent.children.pop(current_idx)
                 self.parent.children.insert(current_idx, new_node)
                 self = new_node
+
+    def populate_symbol_table(self):
+        entry = self.scope.lookup(self.identifier)
+
+        if entry:
+            entry.used = True
+        else:
+            logging.error(f"The identifier '{self.identifier}' was used before being declared")
+            exit()
 
     def type(self):
         try:
@@ -907,6 +925,16 @@ class ASTDeclarationNode(ASTBaseNode):
             self.parent.children.pop(self.parent.children.index(self))
             self = None
 
+    def populate_symbol_table(self):
+        type_spec = self.type()
+        identifier = self.identifier().identifier
+
+        if identifier not in self.scope.table:
+            self.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
+        else:
+            logging.error(f"The variable '{identifier}' was redeclared")
+            exit()
+
     def type(self):
         return self.children[0].type()
 
@@ -954,7 +982,7 @@ class ASTIfStmtNode(ASTBaseNode):
 
     def exit_llvm_text(self):
         # Update outer scope counter
-        self.parent.scope.temp_register = self.scope.temp_register
+        self.parent.scope.temp_register = self.scope.temp_register + 1
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
@@ -1327,6 +1355,22 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
     def type(self):
         return self.returnType().type()
 
+    def populate_symbol_table(self):
+        type_spec = self.returnType().tspec
+        identifier = self.identifier().identifier
+        args = []
+        for arg in self.arguments():
+            try:
+                args.append(arg.tspec)
+            except AttributeError:
+                # Skip identifiers
+                pass
+        if identifier not in self.parent.scope.table:
+            self.parent.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
+        else:
+            logging.error(f"The function '{identifier}' was redeclared")
+            exit()
+
 
 class ASTParameterTypeList(ASTBaseNode):
     def __init__(self):
@@ -1343,6 +1387,16 @@ class ASTParameterTypeList(ASTBaseNode):
         llvmir = llvmir[:-2]
         llvmir += ")"
         return llvmir
+
+    def populate_symbol_table(self):
+        if isinstance(self.parent, ASTFunctionDefinitionNode):
+            for type_node, identifier_node in zip(self.children[0::2], self.children[1::2]):
+                if identifier_node.identifier not in self.scope.table:
+                    if isinstance(identifier_node, ASTIdentifierNode):
+                        iden = identifier_node.identifier
+                    else:
+                        iden = identifier_node.identifier().identifier
+                    self.scope.table[iden] = STT.STTEntry(iden, type_node.type())
 
 
 class ASTTypeSpecifierNode(ASTBaseNode):

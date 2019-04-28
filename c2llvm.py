@@ -73,6 +73,17 @@ def type_checking(ast):
             stack.append(child)
 
 
+def populate_symbol_table(ast):
+    queue = list()
+    queue.append(ast)
+
+    while queue:
+        node = queue.pop(0)
+        node.populate_symbol_table()
+        for child in node.children:
+            queue.append(child)
+
+
 def main(argv):
     input_filepath = None
     try:
@@ -116,6 +127,7 @@ def main(argv):
         logging.error(f"{type(e)}: {e}")
         raise e
 
+    populate_symbol_table(ast)
     type_checking(ast)
     optimise_ast(ast)
 

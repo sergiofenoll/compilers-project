@@ -1,19 +1,15 @@
 #include <stdio.h>
 
+int fib(int n) {
+    if (n <= 2) {
+        return 1;
+    }
+    int f = fib(n - 2) + fib(n - 1);
+    printf("%d\n", f);
+    return f;
+}
 
 int main() {
-    int a = 5;
-    int *p = &a;
-    int **pp = &p;
-    int b = *p;
-    int c = **pp;
-
-    printf("%p\n", &a);
-    printf("%p\n", p);
-    printf("%p\n", *pp);
-
-    printf("%d\n", a);
-    printf("%d\n", b);
-    printf("%d\n", c);
+    fib(6);
     return 0;
 }
