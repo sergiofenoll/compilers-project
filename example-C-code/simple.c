@@ -1,12 +1,13 @@
 #include <stdio.h>
 
 
-int main() {
+void main() {
 
-    int a = 97 + 3;
+    int a[2] = {1, 2};
+    int b = 0;
+    int c = a[b + 1];
+    printf("%d\n", c);
+    return 0;
     
-    printf("%d", a);
-    
-    return a;
 }
 
