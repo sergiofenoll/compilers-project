@@ -1,5 +1,6 @@
 import logging
 import struct
+import AST.STT as STT
 
 
 def c2llvm_type(c_type):
@@ -37,6 +38,7 @@ def get_expression_type(node):
         return "char"
     elif l_type == "bool" or r_type == "bool":
         return "bool"
+
 
 def generate_llvm_expr(node, op):
     llvmir = ""
@@ -91,6 +93,7 @@ def generate_llvm_expr(node, op):
     llvmir += f"%{node.scope.temp_register} = {op} {llvm_type} {lhs}, {rhs}\n"
     node.scope.temp_register += 1
     return llvmir
+
 
 def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
     # Handles implicit cast to destination type (given as LLVMIR type)
@@ -174,6 +177,9 @@ class ASTBaseNode:
 
         output.write("}")
 
+    def populate_symbol_table(self):
+        pass
+
     def type(self):
         return None
 
@@ -192,6 +198,11 @@ class ASTCompilationUnitNode(ASTBaseNode):
             return "declare i32 @printf(i8*, ...)\ndeclare i32 @scanf(i8*, ...)\n\n"
         else:
             return ""
+
+    def populate_symbol_table(self):
+        if self.includes_stdio:
+            self.scope.table["printf"] = STT.STTEntry("printf", "int", ["char*", "..."], register="@printf")
+            self.scope.table["scanf"] = STT.STTEntry("scanf", "int", ["char*", "..."], register="@scanf")
 
 
 class ASTIdentifierNode(ASTBaseNode):
@@ -235,6 +246,15 @@ class ASTIdentifierNode(ASTBaseNode):
                 self.parent.children.pop(current_idx)
                 self.parent.children.insert(current_idx, new_node)
                 self = new_node
+
+    def populate_symbol_table(self):
+        entry = self.scope.lookup(self.identifier)
+
+        if entry:
+            entry.used = True
+        else:
+            logging.error(f"The identifier '{self.identifier}' was used before being declared")
+            exit()
 
     def type(self):
         try:
@@ -340,6 +360,21 @@ class ASTUnaryExpressionNode(ASTExpressionNode):
     def type(self):
         return self.identifier().type()
 
+    def _get_operand_register(self):
+        reg = ""
+        operand = self.identifier()
+        # llvm_type = c2llvm_type(self.type())
+
+        if isinstance(operand, ASTExpressionNode):
+            reg = f"%{self.scope.temp_register - 1}"
+        elif isinstance(operand, ASTConstantNode):
+            reg = operand.llvm_value()
+        elif isinstance(operand, ASTIdentifierNode):
+            # reg should contain dereferenced value of the variable
+            reg = self.scope.lookup(operand.identifier).register
+
+        return reg
+
 
 class ASTArrayAccessNode(ASTUnaryExpressionNode):
     def __init__(self):
@@ -381,7 +416,7 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         return ""
 
     def exit_llvm_text(self):
-        register = self.scope.temp_register
+        og_reg = register = self.scope.temp_register
 
         entry = self.scope.lookup(self.identifier().identifier)
         arg_types = [c2llvm_type(tspec) for tspec in entry.args]
@@ -403,13 +438,15 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
                 args.append(f"{tspec} %{register}")
                 register += 1
             elif isinstance(arg, ASTExpressionNode):
-                args.append(f"{tspec} %{register - expr_arg_count + expr_idx}")
+                # We want to use the original register count because additional registers could've been made for
+                # identifiers and string literals and those would interfere
+                args.append(f"{tspec} %{og_reg - expr_arg_count + expr_idx}")
                 expr_idx += 1
             elif isinstance(arg, ASTStringLiteralNode):
                 # Load string into temp. register and then add to arguments
                 llvmir += f"%{register} = getelementptr {arg.size}, {arg.size}* {arg.location}, i32 0, i32 0\n"
                 register += 1
-                args.append(f"{tspec} %{register-1}")
+                args.append(f"{tspec} %{register - 1}")
         reg_assign = ""
         if function_type != "void":
             reg_assign = f"%{register} = "
@@ -507,9 +544,18 @@ class ASTIndirectionNode(ASTUnaryExpressionNode):
             return self.identifier().type()[:-1]
 
     def exit_llvm_text(self):
+        llvm_ir = ""
+        if not isinstance(self.identifier(), ASTIndirectionNode):
+            temp_register = self.scope.temp_register
+            llvm_ir += f"%{temp_register} = load {c2llvm_type(self.type())}*, {c2llvm_type(self.identifier().type())}* {self._get_operand_register()}\n"
+            self.scope.temp_register += 1
+
         temp_register = self.scope.temp_register
+        last_temp_register = temp_register - 1
+        llvm_ir += f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} %{last_temp_register}\n"
         self.scope.temp_register += 1
-        return f"store {c2llvm_type(self.identifier().type())} %{temp_register - 1}, {c2llvm_type(self.type())} %{temp_register}\n"
+
+        return llvm_ir
 
 
 class ASTAddressOfNode(ASTUnaryExpressionNode):
@@ -517,12 +563,22 @@ class ASTAddressOfNode(ASTUnaryExpressionNode):
         super(ASTAddressOfNode, self).__init__()
 
     def type(self):
+        if not isinstance(self.identifier(), ASTIdentifierNode):
+            logging.error("Cannot apply address-of operator & to a non-variable")
         return self.identifier().type() + "*"
 
     def exit_llvm_text(self):
         temp_register = self.scope.temp_register
+        llvm_ir = f"%{temp_register} = alloca {c2llvm_type(self.type())}\n"
+        llvm_ir += f"store {c2llvm_type(self.identifier().type())}* {self._get_operand_register()}, {c2llvm_type(self.type())}* %{temp_register}\n"
         self.scope.temp_register += 1
-        return f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.identifier().type())} %{temp_register - 1}\n"
+
+        last_temp_register = temp_register
+        temp_register = self.scope.temp_register
+        llvm_ir += f"%{temp_register} = load {c2llvm_type(self.type())}, {c2llvm_type(self.type())}* %{last_temp_register}\n"
+        self.scope.temp_register += 1
+
+        return llvm_ir
 
 
 class ASTCastNode(ASTUnaryExpressionNode):
@@ -872,6 +928,16 @@ class ASTDeclarationNode(ASTBaseNode):
             self.parent.children.pop(self.parent.children.index(self))
             self = None
 
+    def populate_symbol_table(self):
+        type_spec = self.type()
+        identifier = self.identifier().identifier
+
+        if identifier not in self.scope.table:
+            self.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
+        else:
+            logging.error(f"The variable '{identifier}' was redeclared")
+            exit()
+
     def type(self):
         return self.children[0].type()
 
@@ -919,7 +985,7 @@ class ASTIfStmtNode(ASTBaseNode):
 
     def exit_llvm_text(self):
         # Update outer scope counter
-        self.parent.scope.temp_register = self.scope.temp_register
+        self.parent.scope.temp_register = self.scope.temp_register + 1
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
@@ -1292,6 +1358,22 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
     def type(self):
         return self.returnType().type()
 
+    def populate_symbol_table(self):
+        type_spec = self.returnType().tspec
+        identifier = self.identifier().identifier
+        args = []
+        for arg in self.arguments():
+            try:
+                args.append(arg.tspec)
+            except AttributeError:
+                # Skip identifiers
+                pass
+        if identifier not in self.parent.scope.table:
+            self.parent.scope.table[identifier] = STT.STTEntry(identifier, type_spec, args)
+        else:
+            logging.error(f"The function '{identifier}' was redeclared")
+            exit()
+
 
 class ASTParameterTypeList(ASTBaseNode):
     def __init__(self):
@@ -1308,6 +1390,16 @@ class ASTParameterTypeList(ASTBaseNode):
         llvmir = llvmir[:-2]
         llvmir += ")"
         return llvmir
+
+    def populate_symbol_table(self):
+        if isinstance(self.parent, ASTFunctionDefinitionNode):
+            for type_node, identifier_node in zip(self.children[0::2], self.children[1::2]):
+                if identifier_node.identifier not in self.scope.table:
+                    if isinstance(identifier_node, ASTIdentifierNode):
+                        iden = identifier_node.identifier
+                    else:
+                        iden = identifier_node.identifier().identifier
+                    self.scope.table[iden] = STT.STTEntry(iden, type_node.type())
 
 
 class ASTTypeSpecifierNode(ASTBaseNode):
