@@ -406,6 +406,9 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         super(ASTFunctionCallNode, self).__init__()
         self.name = "FunctionCall"
 
+    def type(self):
+        return self.scope.lookup(self.identifier().identifier).type_desc
+
     def arguments(self):
         return self.children[1:]
 
@@ -437,8 +440,13 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
             elif isinstance(arg, ASTExpressionNode):
                 # We want to use the original register count because additional registers could've been made for
                 # identifiers and string literals and those would interfere
-                args.append(f"{tspec} %{og_reg - expr_arg_count + expr_idx}")
-                expr_idx += 1
+                if isinstance(arg, ASTAddressOfNode) or isinstance(arg, ASTIndirectionNode):
+                    # Address-of and indirection operators use two temporary register
+                    args.append(f"{tspec} %{og_reg - expr_arg_count + expr_idx - 1}")
+                    expr_idx += 2
+                else:
+                    args.append(f"{tspec} %{og_reg - expr_arg_count + expr_idx}")
+                    expr_idx += 1
             elif isinstance(arg, ASTStringLiteralNode):
                 # Load string into temp. register and then add to arguments
                 llvmir += f"%{register} = getelementptr {arg.size}, {arg.size}* {arg.location}, i32 0, i32 0\n"
