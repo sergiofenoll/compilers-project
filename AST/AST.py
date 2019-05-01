@@ -384,6 +384,9 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
     def indexer(self):
         return self.children[1]
 
+    def type(self):
+        return self.identifier().type()[:-2] # leave out '[]'
+
     def exit_llvm_text(self):
         symbol_table_entry = self.scope.lookup(self.identifier().identifier)
         array_member_type = c2llvm_type(self.type())
@@ -392,7 +395,7 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
         if isinstance(self.indexer(), ASTConstantNode):
             idx = self.indexer().llvm_value()
         else:
-            idx = self.scope.temp_register - 1
+            idx = f"%{self.scope.temp_register - 1}"
         llvm_ir = f"%{self.scope.temp_register} = getelementptr {array_type}, {array_type}* {array_register}, i32 0, i32 {idx}\n"
         temp_reg = self.scope.temp_register
         self.scope.temp_register += 1
