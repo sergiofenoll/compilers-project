@@ -1,89 +1,97 @@
 grammar C;
 
 compilationUnit:
-	(functionDefinition | declaration)+? EOF
+	IncludeStdIO? (functionDefinition | declaration)*? EOF
 ;
 
 primaryExpression:
-	Identifier
-|	Constant
-|	StringLiteral
-|	'(' expression ')'
+	Identifier #identifier
+|	(ConstantInt|ConstantFloat|ConstantChar) #constant
+|	StringLiteral #stringLiteral
+|	'(' expression ')' #parenExpression
 ;
 
 postfixExpression:
-	primaryExpression
-|	postfixExpression '[' expression ']'
-|	postfixExpression '(' argumentExpressionList? ')'
-|	postfixExpression '.' Identifier
-|	postfixExpression '->' Identifier
+	primaryExpression #postfixPassthrough
+|	postfixExpression '[' expression ']' #arrayAccess
+|	postfixExpression '(' assignmentExpression? (',' assignmentExpression)* ')' #functionCall
+// |	postfixExpression '.' Identifier
+// |	postfixExpression '->' Identifier
 ;
 
-argumentExpressionList:
-	assignmentExpression
-|	argumentExpressionList ',' assignmentExpression
-;
+// argumentExpressionList:
+//	assignmentExpression
+//|	argumentExpressionList ',' assignmentExpression
+//;
 
 unaryExpression:
-	postfixExpression
-|	unaryExpression '++'
-|	unaryExpression '--'
-|	'++' unaryExpression
-|	'--' unaryExpression
-|	('*' | '+' | '-' | '!') castExpression
+	postfixExpression #unaryPassthrough
+|	unaryExpression '++' #postfixIncrement
+|	unaryExpression '--' #postfixDecrement
+|	'++' unaryExpression #prefixIncrement
+|	'--' unaryExpression #prefixDecrement
+|	'*' castExpression #indirection
+|   '&' castExpression #addressOf
+|   '+' castExpression #unaryPlus
+|   '-' castExpression #unaryMinus
+|   '!' castExpression #logicalNot
 ;
 
 castExpression:
-	unaryExpression
-|	'(' typeName ')' castExpression
+	unaryExpression #castPassthrough
+|	'(' typeName ')' castExpression #cast
 ;
 
 multiplicativeExpression:
-	castExpression
-|	multiplicativeExpression '*' castExpression
-|	multiplicativeExpression '/' castExpression
-|	multiplicativeExpression '%' castExpression
+	castExpression #multiplicativePassthrough
+|	multiplicativeExpression '*' castExpression #multiplication
+|	multiplicativeExpression '/' castExpression #division
+|	multiplicativeExpression '%' castExpression #modulo
 ;
 
 additiveExpression:
-	multiplicativeExpression
-|	additiveExpression '+' multiplicativeExpression
-|	additiveExpression '-' multiplicativeExpression
+	multiplicativeExpression #additivePassthrough
+|	additiveExpression '+' multiplicativeExpression #addition
+|	additiveExpression '-' multiplicativeExpression #subtraction
 ;
 
 relationalExpression:
-	additiveExpression
-|	relationalExpression '<' additiveExpression
-|	relationalExpression '>' additiveExpression
-|	relationalExpression '<=' additiveExpression
-|	relationalExpression '>=' additiveExpression
+	additiveExpression #relationalPassthrough
+|	relationalExpression '<' additiveExpression #smallerThan
+|	relationalExpression '>' additiveExpression #largerThan
+|	relationalExpression '<=' additiveExpression #smallerThanOrEqual
+|	relationalExpression '>=' additiveExpression #largerThanOrEqual
 ;
 
 equalityExpression:
-    relationalExpression
-|	relationalExpression '==' additiveExpression
-|	relationalExpression '!=' additiveExpression
+    relationalExpression #equalityPassthrough
+|	relationalExpression '==' additiveExpression #equals
+|	relationalExpression '!=' additiveExpression #notEquals
 ;
 
 logicalExpression:
-	equalityExpression
-|	logicalExpression '&&' relationalExpression
-|	logicalExpression '||' relationalExpression
+	equalityExpression #logicalPassthrough
+|	logicalExpression '&&' relationalExpression #logicalAnd
+|	logicalExpression '||' relationalExpression #logicalOr
 ;
 
 conditionalExpression:
-	logicalExpression
-|	logicalExpression '?' expression ':' conditionalExpression
+	logicalExpression #conditionalPassthrough
+|	logicalExpression '?' expression ':' conditionalExpression #conditional
 ;
 
 assignmentExpression:
-	conditionalExpression
-|	unaryExpression ('=' | '*=' | '/=' | '%=' | '+=' | '-=') assignmentExpression
+	conditionalExpression #assignmentPassthrough
+|	unaryExpression '=' assignmentExpression #assignment
+|   unaryExpression '*=' assignmentExpression #assignmentMul
+|   unaryExpression '/=' assignmentExpression #assignmentDiv
+|   unaryExpression '+=' assignmentExpression #assignmentAdd
+|   unaryExpression '-=' assignmentExpression #assignmentSub
 ;
 
 expression:
-	assignmentExpression
-|	expression ',' assignmentExpression
+	assignmentExpression #expressionPassthrough
+|	expression ',' assignmentExpression #expressionList
 ;
 
 constantExpression:
@@ -125,11 +133,11 @@ declarator:
 ;
 
 directDeclarator:
-	Identifier
-|	'(' declarator ')'
-|	directDeclarator '[' assignmentExpression? ']'
-|	directDeclarator '(' parameterTypeList? ')'
-// |	direct_declarator '(' identifier_list? ')' // What is this?
+	Identifier #identifierDeclarator
+|	'(' declarator ')' #parenDeclarator
+|	directDeclarator '[' assignmentExpression? ']' #arrayDeclarator
+|	directDeclarator '(' parameterTypeList? ')' #functionDeclarator
+// |	directDeclarator '(' identifierList? ')' // What is this?
 ;
 
 pointer:
@@ -142,8 +150,7 @@ parameterTypeList:
 ;
 
 parameterList:
-	parameterDeclaration
-|	parameterList ',' parameterDeclaration
+	parameterDeclaration (',' parameterDeclaration)*
 ;
 
 parameterDeclaration:
@@ -151,10 +158,12 @@ parameterDeclaration:
 |	declarationSpecifiers
 ;
 
-identifierList:
-	Identifier
-|	identifierList ',' Identifier
-;
+// Rule is used by spec in directDeclarator, but we're not sure what it's actually for
+// Left out until its use can be determined
+//identifierList:
+//	Identifier
+//|	identifierList ',' Identifier
+//;
 
 typeName:
 	specifierQualifierList
@@ -182,8 +191,8 @@ statement:
 
 labeledStatement:
 	Identifier ':' statement
-|	Case constantExpression ':' statement
-|	Default ':' statement
+//|	Case constantExpression ':' statement
+//|	Default ':' statement
 ;
 
 compoundStatement:
@@ -207,7 +216,7 @@ expressionStatement:
 selectionStatement:
 	If '(' expression ')' statement
 |	If '(' expression ')' statement Else statement
-|	Switch '(' expression ')' statement
+//|	Switch '(' expression ')' statement
 ;
 
 iterationStatement:
@@ -217,10 +226,10 @@ iterationStatement:
 ;
 
 jumpStatement:
-	Goto Identifier ';'
-|	Continue ';'
-|	Break ';'
-|	Return expression? ';'
+	Goto Identifier ';'     #goto
+|	Continue ';'            #continue
+|	Break ';'               #break
+|	Return expression? ';'  #return
 ;
 
 functionDefinition:
@@ -231,6 +240,9 @@ declarationList:
 	declaration
 |	declarationList declaration
 ;
+
+// Include
+IncludeStdIO: '#include <stdio.h>';
 
 // Types
 Char: 'char';
@@ -275,17 +287,11 @@ fragment CChar:
 	~('\'' | '\n' | '\\')
 |	EscapeSequence
 ;
-fragment ConstantInt: Sign? Digit+;
-fragment ConstantFloat:
+ConstantInt: Sign? Digit+;
+ConstantFloat:
 	Digit* '.' Digit+ ExponentPart?
 |	Digit+ '.' ExponentPart?;
-fragment ConstantChar: '\'' CChar '\'';
-
-Constant:
-	ConstantInt
-|	ConstantFloat
-|	ConstantChar
-;
+ConstantChar: '\'' CChar '\'';
 
 fragment SChar:
 	~('"' | '\n' | '\\')
