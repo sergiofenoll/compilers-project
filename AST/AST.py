@@ -897,7 +897,7 @@ class ASTDeclarationNode(ASTBaseNode):
             return llvm_ir
         last_temp_register = self.scope.temp_register
         llvm_ir = ""
-        identifier_name = self.identifier()._generateLLVMIR()
+        value = None
         llvm_type = c2llvm_type(self.type())
         if len(self.children) > 2:
             value_node = self.children[2]
@@ -905,25 +905,27 @@ class ASTDeclarationNode(ASTBaseNode):
                 value = value_node.llvm_value()
                 if llvm_type == "i8" and str(value)[0] == "'":
                     # Cast character to Unicode value
-                    value = str(ord(value[1])) # Character of form: 'c'
+                    value = str(ord(value[1]))  # Character of form: 'c'
             else:
                 # Account for implicit conversion
-                if(self.type() != self.children[2].type()):
+                if self.type() != self.children[2].type():
                     llvm_ir += generate_llvm_impl_cast(self.children[2], f"%{last_temp_register-1}", llvm_type)
                     last_temp_register += 1
-                value = "%" + str(last_temp_register-1)
+                value = "%" + str(last_temp_register - 1)
         else:
             # Initialise this to 0 by default
             if llvm_type == "i32" or llvm_type == "i8":
                 value = "0"
             elif llvm_type == "float":
                 value = "0.000000e+00"
-        # Store value (expression or constant) in register
-        if self.scope.parent is not None:
-            llvm_ir += f"store {llvm_type} {value}, {llvm_type}* {identifier_name}\n"
-        else:
-            # Global declaration
-            llvm_ir += f" {value}\n"
+
+        if value is not None:
+            # Store value (expression or constant) in register
+            if self.scope.parent is not None:
+                llvm_ir += f"store {llvm_type} {value}, {llvm_type}* {identifier_name}\n"
+            else:
+                # Global declaration
+                llvm_ir += f" {value}\n"
 
         return llvm_ir
 
