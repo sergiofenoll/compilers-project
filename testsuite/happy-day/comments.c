@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
     // This is a signle line comment
     // It will be ignored by the compiler
     // Even if there's code after it!
