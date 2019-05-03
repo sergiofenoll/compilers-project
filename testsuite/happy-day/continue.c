@@ -8,6 +8,7 @@ int main() {
             continue;
         }
         printf("Iteration %d\n", counter);
+		break;
     }
 
     for (int i=1; i < 5; i += 1) {

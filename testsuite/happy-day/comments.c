@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 int main(int argc, char* argv[]) {
     // This is a signle line comment
     // It will be ignored by the compiler
@@ -12,5 +14,7 @@ int main(int argc, char* argv[]) {
      * float f = 2.54;
      * printf("a: %d b: %d f: %f\n", a, b, f);
      */
+	// The code below will be executed
+	printf("Hello world!\n");
     return 0;
 }

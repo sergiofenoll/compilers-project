@@ -12,7 +12,7 @@ int main() {
 
     for (int i=1; i < 1000; i += 1) {
         if (i >= 5) {
-            break
+            break;
         }
         printf("Iteration %d\n", i);
     }
