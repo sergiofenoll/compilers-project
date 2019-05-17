@@ -42,13 +42,14 @@ do
         echo "Compiling $file with GCC"
         gcc $file -o `echo $file | sed 's/\.c$/\.out/'`
 
-        echo "Running GCC generated binary and storing its output in `echo $file | sed 's/\.c$/\.txt/'`"
+        echo "Running GCC generated binary and storing its output in `echo $file | sed 's/\.c$/\.theirs\.txt/'`"
         ./`echo $file | sed 's/\.c$/\.out/'` > `echo $file | sed 's/\.c$/\.theirs\.txt/'`
         rm `echo $file | sed 's/\.c$/\.out/'`
 
-        echo "Comparing output of GCC binary and ours"
-
+        echo "Running our generated code and storing its output in `echo $file | sed 's/\.c$/\.ours\.txt/'`"
         $runner `echo $file | sed "s/\.c*/\.$extension/"` > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+
+        echo "Comparing output of GCC binary and ours"
         diff -q `echo $file | sed 's/\.c$/\.theirs\.txt/'` `echo $file | sed 's/\.c$/\.ours\.txt/'`
     fi
 

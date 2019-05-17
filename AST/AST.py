@@ -3,6 +3,25 @@ import struct
 import AST.STT as STT
 
 
+class TempRegisterCounter:
+    def __init__(self):
+        self.last = 0
+
+    def get_curr(self):
+        return f"%{self.last - 1}"
+
+    def get_prev(self, n=1):
+        return f"%{self.last - n}"
+
+    def get_next(self):
+        last = self.last
+        self.last += 1
+        return f"%{last}"
+
+
+temp_reg = TempRegisterCounter()
+
+
 def c2llvm_type(c_type):
     if c_type == "...":
         ir_type = "..."
@@ -117,7 +136,7 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
         else:
             cast_instruction = "trunc"
     else:
-        return  # origin_type and dest_type must be the same, no need to cast at all
+        return ""  # origin_type and dest_type must be the same, no need to cast at all
 
     dest_register = f"%{origin_node.scope.temp_register}"   
     llvmir += f"{dest_register} = {cast_instruction} {origin_type} {origin_register} to {dest_type}\n"
@@ -241,9 +260,10 @@ class ASTIdentifierNode(ASTBaseNode):
     def populate_symbol_table(self):
         entry = self.scope.lookup(self.identifier)
         scope = self.scope.scope_level(self.identifier)
+        rank = self.scope.parent.children.index(self.scope)
 
         if entry:
-            register = f"%{self.identifier}.scope{scope}" if scope else f"@{self.identifier}"
+            register = f"%{self.identifier}.scope{scope}.rank{rank}" if scope else f"@{self.identifier}"
             entry.register = register
             self.value_register = register
             entry.used = True
@@ -281,6 +301,11 @@ class ASTConstantNode(ASTBaseNode):
     def llvm_value(self):
         if self.type_specifier == "float":
             return hexify_float(self.__value)
+        elif self.type_specifier == "char":
+            try:
+                return str(ord(self.__value[1]))  # 'c' char
+            except TypeError:
+                return self.__value  # 99 char
         else:
             return self.__value
 
@@ -620,6 +645,7 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
     def exit_llvm_text(self):
         indentifier_register = self.left().value_register
         llvm_type = c2llvm_type(self.type())
+        self.value_register = self.right().value_register  # We re-use the register from the rhs expression for this assignment expression
         return f"store {llvm_type} {self.right().value_register}, {llvm_type}* {indentifier_register}\n"
 
 
@@ -961,7 +987,7 @@ class ASTIfStmtNode(ASTBaseNode):
 
     def exit_llvm_text(self):
         # Update outer scope counter
-        self.parent.scope.temp_register = self.scope.temp_register + 1
+        self.parent.scope.temp_register = self.scope.temp_register
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
@@ -975,13 +1001,26 @@ class ASTIfConditionNode(ASTBaseNode):
         cond_register = self.scope.temp_register - 1
         self.parent.cond_register = f"%{cond_register}"
         self.parent.true_label = f"IfTrue{cond_register}"
-        self.parent.false_label = f"IfFalse{cond_register}" 
+        self.parent.false_label = f"IfFalse{cond_register}"
         self.parent.finish_label = f"IfEnd{cond_register}"
+
         if len(self.parent.children) < 3:
             # No false/else block; jump to end if condition is false
             self.parent.false_label = self.parent.finish_label
 
-        llvmir = f"br i1 {self.parent.cond_register}, label %{self.parent.true_label}, label %{self.parent.false_label}\n"
+        llvmir = ""
+
+        if isinstance(self.children[0], ASTIdentifierNode):
+            identifier_register = self.children[0].value_register
+            identifer_type = c2llvm_type(self.children[0].type())
+
+            llvmir += f"%{self.scope.temp_register} = load {identifer_type}, {identifer_type}* {identifier_register}\n"
+            self.scope.temp_register += 1
+
+        llvmir += generate_llvm_impl_cast(self.children[0], f"%{self.scope.temp_register - 1}", "i1")
+        cond_register = self.children[0].value_register
+
+        llvmir += f"br i1 {cond_register}, label %{self.parent.true_label}, label %{self.parent.finish_label}\n"
         return llvmir
 
 
@@ -1071,7 +1110,8 @@ class ASTWhileCondNode(ASTWhileStmtNode):
             llvmir += f"%{self.scope.temp_register} = load {identifer_type}, {identifer_type}* {identifier_register}\n"
             self.scope.temp_register += 1
 
-        llvmir += generate_llvm_impl_cast(self.children[0], f"%{self.scope.temp_register - 1}", "i1")
+        llvmir += generate_llvm_impl_cast(self.children[0], self.children[0].value_register, "i1")
+
         cond_register = self.children[0].value_register
 
         llvmir += f"br i1 {cond_register}, label %{self.parent.true_label}, label %{self.parent.finish_label}\n"
@@ -1106,7 +1146,7 @@ class ASTForStmtNode(ASTBaseNode):
         self.finish_label = None
 
     def exit_llvm_text(self):
-
+        self.scope.parent.temp_register = self.scope.temp_register
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
@@ -1131,6 +1171,7 @@ class ASTForCondNode(ASTForStmtNode):
 
     def enter_llvm_text(self):
         counter = self.scope.temp_register
+        self.scope.temp_register += 1
         self.parent.cond_label = f"ForCond{counter}"
         self.parent.updater_label = f"ForUpdater{counter}"
         self.parent.true_label = f"ForTrue{counter}"
@@ -1141,8 +1182,19 @@ class ASTForCondNode(ASTForStmtNode):
         return llvmir
 
     def exit_llvm_text(self):
+        llvmir = ""
 
-        llvmir = f"br i1 %{self.scope.temp_register-1}, label %{self.parent.updater_label}, label %{self.parent.finish_label}\n"
+        if isinstance(self.children[0], ASTIdentifierNode):
+            identifier_register = self.children[0].value_register
+            identifer_type = c2llvm_type(self.children[0].type())
+
+            llvmir += f"%{self.scope.temp_register} = load {identifer_type}, {identifer_type}* {identifier_register}\n"
+            self.scope.temp_register += 1
+
+        llvmir += generate_llvm_impl_cast(self.children[0], f"%{self.scope.temp_register - 1}", "i1")
+        cond_register = self.children[0].value_register
+
+        llvmir += f"br i1 {cond_register}, label %{self.parent.true_label}, label %{self.parent.finish_label}\n"
         return llvmir
 
 
@@ -1157,7 +1209,7 @@ class ASTForUpdaterNode(ASTForStmtNode):
 
     def exit_llvm_text(self):
 
-        llvmir = f"br label %{self.parent.true_label}\n"
+        llvmir = f"br label %{self.parent.cond_label}\n"
         return llvmir
 
 
@@ -1176,7 +1228,7 @@ class ASTForTrueNode(ASTForStmtNode):
         # Set parent scope counter to scope counter
         self.parent.scope.temp_register = self.scope.temp_register
 
-        llvmir = f"br label %{self.parent.finish_label}\n"
+        llvmir = f"br label %{self.parent.updater_label}\n"
         return llvmir
 
 

@@ -550,8 +550,12 @@ class ASTBuilder(CListener):
         elif ctx.While():
             node = AST.ASTWhileStmtNode("While")
         node.parent = self.current_node
-        node.scope = self.current_node.scope
+        outer_for_scope = STT.STTNode()
+        outer_for_scope.parent = self.current_node.scope
+        outer_for_scope.depth = outer_for_scope.parent.depth + 1
+        node.scope = outer_for_scope
         self.current_node.children.append(node)
+        self.current_node.scope.children.append(outer_for_scope)
         self.current_node = node
 
     def exitIterationStatement(self, ctx:CParser.IterationStatementContext):

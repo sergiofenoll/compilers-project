@@ -4,11 +4,11 @@ Module representing the structure of a tree of symbol tables
 
 
 class STTNode:
-    def __init__(self):
+    def __init__(self, name=None):
         self.parent = None
         self.children = []
         self.table = dict()
-        self.name = "Symbol Table"
+        self.name = name or "Symbol Table"
         self.depth = 0
         self.temp_register = 0
 
@@ -65,7 +65,7 @@ class STTNode:
         table = f"""
         node{ncount}
         [label=<<table border="0" cellspacing="0">
-            <tr><td border="1" colspan="5">{self.name}</td></tr>
+            <tr><td border="1" colspan="5">{self.name} scope {self.depth}</td></tr>
             {self.__table_header if len(entries) else ''}
             {entries}
         </table>>]"""
@@ -79,7 +79,7 @@ class STTNode:
                 table = f"""
                         node{ncount}
                         [label=<<table border="0" cellspacing="0">
-                            <tr><td border="1" colspan="5">{node.name}</td></tr>
+                            <tr><td border="1" colspan="5">{node.name} scope {node.depth}</td></tr>
                             {self.__table_header if len(entries) else ''}
                             {entries}
                         </table>>]"""

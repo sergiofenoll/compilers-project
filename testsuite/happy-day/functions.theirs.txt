@@ -1,0 +1,3 @@
+This function has argument 'a':60
+This function has argument 'a':5.530000
+This function has argument 'a':q

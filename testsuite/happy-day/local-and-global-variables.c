@@ -4,7 +4,7 @@ int glob_int = 60;
 float glob_float = 2.58;
 char glob_char = 'A';
 
-int main(int argc, char* arv[]) {
+int main(int argc, char** argv) {
     int loc_int = 375;
     float loc_float = 2.33356;
     char loc_char = 'a';

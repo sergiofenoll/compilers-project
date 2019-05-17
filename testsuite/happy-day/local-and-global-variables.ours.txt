@@ -1,0 +1,6 @@
+Global int: 60
+Global float: 0.000000
+Global char: A
+Local int: 375
+Local float: 0.000000
+Local char: a

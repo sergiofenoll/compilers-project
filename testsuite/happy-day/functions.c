@@ -19,7 +19,7 @@ char charFunc(char a) {
     return a;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
     intFunc(60);
     floatFunc(5.53);
     charFunc('q');
