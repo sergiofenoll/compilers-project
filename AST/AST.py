@@ -1145,6 +1145,10 @@ class ASTForStmtNode(ASTBaseNode):
         self.true_label = None
         self.finish_label = None
 
+    def enter_llvm_text(self):
+        self.scope.temp_register = self.parent.scope.temp_register
+        return ""
+
     def exit_llvm_text(self):
         self.scope.parent.temp_register = self.scope.temp_register
         llvmir = f"\n{self.finish_label}:\n"
