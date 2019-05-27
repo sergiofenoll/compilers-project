@@ -661,6 +661,13 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         return self.right().value()
 
     def optimise(self):
+        ancestor = self.parent
+        while ancestor is not None:
+            if isinstance(ancestor, ASTIfStmtNode) or isinstance(ancestor, ASTWhileStmtNode) or isinstance(ancestor, ASTForStmtNode):
+                # Do not optimize assignments inside conditionally executed code blocks
+                return
+            ancestor = ancestor.parent
+
         # If possible, update the value in the symbol table
         if isinstance(self.children[1], ASTConstantNode):
             entry = self.scope.lookup(self.children[0].identifier)
@@ -1321,6 +1328,14 @@ class ASTWhileStmtNode(ASTBaseNode):
         self.true_label = None
         self.finish_label = None
 
+    def optimise(self):
+        # If condition is a constant, replace IfStmtNode by appropriate (conditional) subtree
+        cond_node = self.children[0]
+        if len(cond_node.children) == 1 and isinstance(cond_node.children[0], ASTConstantNode):
+            if cond_node.children[0].value() == 0:
+                # Delete this node
+                self.parent.children.pop(self.parent.children.index(self))
+
     def exit_llvm_text(self):
         # Set outer scope counter to scope counter
         self.parent.scope.temp_register = self.scope.temp_register
@@ -1332,6 +1347,9 @@ class ASTWhileStmtNode(ASTBaseNode):
 class ASTWhileCondNode(ASTWhileStmtNode):
     def __init__(self):
         super(ASTWhileCondNode, self).__init__("WhileCond")
+
+    def optimise(self):
+        self.propagate_constants()
 
     def enter_llvm_text(self):
         # Set body scope counter to outer scope counter
@@ -1587,7 +1605,7 @@ class ASTReturnNode(ASTBaseNode):
         # Check if child value known at compiletime
         if isinstance(self.children[0], ASTIdentifierNode):
             entry = self.scope.lookup(self.children[0].identifier)
-            if entry and entry.value:
+            if entry and entry.value is not None:
                 new_node = ASTConstantNode(entry.value, entry.type_desc)
                 new_node.parent = self
                 new_node.scope = self.children[0].scope

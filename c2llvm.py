@@ -19,13 +19,33 @@ def optimise_ast(ast):
     #   - Fold constants
     #   - Remove useless code: arithmetic expressions that evaluate to known values
     
+    n_idx = None
+    try:
+        n_idx = ast.parent.children.index(ast)
+    except:
+        pass # ignore root
+
     # If statements
     if isinstance(ast, AST.ASTIfStmtNode):
-        n_idx = ast.parent.children.index(ast)
         ast.children[0].optimise() # Optimise condition node first
         ast.optimise() # Optimise If-subtree (might replace subtree)
         for child in ast.parent.children[n_idx].children:
             optimise_ast(child)
+
+        if n_idx is not None:
+            if ast != ast.parent.children[n_idx]:
+                print(ast.parent.children[n_idx])
+                optimise_ast(ast.parent.children[n_idx])
+        return
+
+    # While loops
+    if isinstance(ast, AST.ASTWhileStmtNode):
+        ast.children[0].optimise() # Optimise condition node first
+        ast.optimise()
+        
+        if n_idx is not None:
+            if ast != ast.parent.children[n_idx]:
+                optimise_ast(ast.parent.children[n_idx])
         return
 
     # General rule
