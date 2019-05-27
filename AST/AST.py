@@ -636,6 +636,10 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         super(ASTAssignmentNode, self).__init__()
         self.name = "="
 
+        # If possible, assign/update the value of the assigned variable in the symbol table
+        if isinstance(self.right(), ASTConstantNode):
+            pass
+
     def type(self):
         return self.left().type()
 
@@ -669,20 +673,33 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
             new_node = ASTConstantNode(0, "int")
             new_node.parent = self.parent
             new_node.scope = self.scope
-            self.parent.children.pop(self.c_idx)
-            self.parent.children.insert(self.c_idx, new_node)
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
             self = new_node
 
         elif rhs == 1:
             # Evaluates to lhs
-            self.parent.children.pop(self.c_idx)
-            self.parent.children.insert(self.c_idx, self.left())
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, self.left())
             self = None
         
         elif lhs == 1:
             # Evaluaties to rhs
-            self.parent.children.pop(self.c_idx)
-            self.parent.children.insert(self.c_idx, self.right())
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, self.right())
+            self = None
+
+        elif lhs is not None and rhs is not None:
+            # Evaluate expression in compiler
+            new_node = ASTConstantNode(lhs * rhs, get_expression_type(self))
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
             self = None
 
     def exit_llvm_text(self):
@@ -700,12 +717,26 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
         value = self.right().value()
         if value and int(value) == 1:
             # This entire division will evaluate to the lhs
-            self.parent.children.pop(self.c_idx)
-            self.parent.children.insert(self.c_idx, self.left())
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, self.left())
             self = None
         elif value and int(value) == 0:
             # Division by 0: warn user
             logging.warning("Division by 0")
+        elif isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
+            # Evaluate in compiler
+            value = self.left().value() / self.right().value()
+            expr_type = get_expression_type(self)
+            if expr_type != "float":
+                value = int(value)
+            new_node = ASTConstantNode(value, expr_type)
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fdiv" if self.type() == "float" else "sdiv")
@@ -724,9 +755,19 @@ class ASTModuloNode(ASTBinaryExpressionNode):
             new_node = ASTConstantNode(0, "int")
             new_node.parent = self.parent
             new_node.scope = self.scope
-            self.parent.children.pop(self.c_idx)
-            self.parent.children.insert(self.c_idx, new_node)
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
             self = new_node
+        elif isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
+            # Evaluate in compiler
+            new_node = ASTConstantNode(self.left().value() % self.right().value(), get_expression_type(self))
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def type(self):
         if self.left().type() == "float" or self.right().type() == "float":
@@ -743,6 +784,18 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
         super(ASTAdditionNode, self).__init__()
         self.name = "+"
 
+    def optimise(self):
+
+        if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
+            # Evaluate in compiler
+            new_node = ASTConstantNode(self.left().value() + self.right().value(), get_expression_type(self))
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
+
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fadd" if self.type() == "float" else "add")
 
@@ -751,6 +804,18 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
     def __init__(self):
         super(ASTSubtractionNode, self).__init__()
         self.name = "-"
+
+    def optimise(self):
+
+        if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
+            # Evaluate in compiler
+            new_node = ASTConstantNode(self.left().value() - self.right().value(), get_expression_type(self))
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fsub" if self.type() == "float" else "sub")
@@ -774,6 +839,19 @@ class ASTSmallerThanNode(ASTLogicalNode):
         super(ASTSmallerThanNode, self).__init__()
         self.name = "<"
 
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() < self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
+
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp olt" if self.float_op() else "icmp slt")
 
@@ -782,6 +860,19 @@ class ASTLargerThanNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLargerThanNode, self).__init__()
         self.name = ">"
+    
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() > self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp ogt" if self.float_op() else "icmp sgt")
@@ -792,6 +883,19 @@ class ASTSmallerThanOrEqualNode(ASTLogicalNode):
         super(ASTSmallerThanOrEqualNode, self).__init__()
         self.name = "<="
 
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() <= self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
+
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp ole" if self.float_op() else "icmp sle")
 
@@ -800,6 +904,19 @@ class ASTLargerThanOrEqualNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLargerThanOrEqualNode, self).__init__()
         self.name = ">="
+
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() >= self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp oge" if self.float_op() else "icmp sge")
@@ -810,6 +927,19 @@ class ASTEqualsNode(ASTLogicalNode):
         super(ASTEqualsNode, self).__init__()
         self.name = "=="
 
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() == self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
+
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp oeq" if self.float_op() else "icmp eq")
 
@@ -818,6 +948,19 @@ class ASTNotEqualsNode(ASTLogicalNode):
     def __init__(self):
         super(ASTNotEqualsNode, self).__init__()
         self.name = "!="
+
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() != self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp one" if self.float_op() else "icmp ne")
@@ -828,6 +971,20 @@ class ASTLogicalAndNode(ASTLogicalNode):
         super(ASTLogicalAndNode, self).__init__()
         self.name = "&&"
 
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() and self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
+
+
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "and")
 
@@ -836,6 +993,19 @@ class ASTLogicalOrNode(ASTLogicalNode):
     def __init__(self):
         super(ASTLogicalOrNode, self).__init__()
         self.name = "||"
+        
+    def optimise(self):
+        # If both children are constants, evaluate expression in compiler
+
+        if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
+            value = int(self.left().value() or self.right().value())
+            new_node = ASTConstantNode(value, "int")
+            new_node.parent = self.parent
+            new_node.scope = self.scope
+            c_idx = self.parent.children.index(self)
+            self.parent.children.pop(c_idx)
+            self.parent.children.insert(c_idx, new_node)
+            self = None
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "or")
@@ -979,6 +1149,34 @@ class ASTIfStmtNode(ASTBaseNode):
         self.true_label = None
         self.false_label = None
         self.finish_label = None
+
+    def optimise(self):
+        # If condition is a constant, replace IfStmtNode by appropriate (conditional) subtree
+        cond_node = self.children[0]
+        if len(cond_node.children) == 1 and isinstance(cond_node.children[0], ASTConstantNode):
+            new_tree = None
+            # If not 0, replace this node with the 'true' subtree
+            if cond_node.children[0].value() != 0:
+                new_tree = self.children[1].children[0].children[0] # self->IfTrue->compound->actual child
+            # Else, replace it with the 'false' subtree if one exists, otherwise just delete this node
+            else:
+                if len(self.children) > 2:
+                    new_tree = self.children[2].children[0].children[0]
+                else:
+                    new_tree = -1
+            
+            if new_tree == -1:
+                # Delete this node
+                self.parent.children.pop(self.parent.children.index(self))
+            elif new_tree is not None:
+                # Replace this node
+                new_tree.parent = self.parent
+                new_tree.scope = self.scope
+                c_idx = self.parent.children.index(self)
+                self.parent.children.pop(c_idx)
+                self.parent.children.insert(c_idx, new_tree)
+                self = None
+
 
     def enter_llvm_text(self):
         # Just a newline for readability

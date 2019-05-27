@@ -1,15 +1,11 @@
 #include <stdio.h>
 
-int fib(int n) {
-    if (n <= 2) {
-        return 1;
-    }
-    int f = fib(n - 2) + fib(n - 1);
-    printf("%d\n", f);
-    return f;
+void f(int* a) {
+    *a = 7;
 }
 
 int main() {
-    fib(6);
-    return 0;
+    int a = 4 + 1;
+    f(&a);
+    return a;
 }
