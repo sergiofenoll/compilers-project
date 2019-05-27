@@ -111,7 +111,7 @@ class STTEntry:
             <td border="1">{self.identifier}</td>
             <td border="1">{self.type_desc}</td>
             <td border="1">{", ".join(arg for arg in self.args)}</td>
-            <td border="1">{self.value or ''}</td>
+            <td border="1">{self.value if self.value is not None else ''}</td>
             <td border="1">{self.used}</td>
         </tr>"""
 

@@ -18,20 +18,20 @@ def optimise_ast(ast):
     #   - Remove declarations for unused variables
     #   - Fold constants
     #   - Remove useless code: arithmetic expressions that evaluate to known values
-
-    stack = list()
-    queue = list()
-    queue.append(ast)
-
-    while queue:
-        node = queue.pop(0)
-        stack.append(node)
-        for child in node.children[::-1]:
-            queue.append(child)
     
-    while stack:
-        node = stack.pop()
-        node.optimise()
+    # If statements
+    if isinstance(ast, AST.ASTIfStmtNode):
+        n_idx = ast.parent.children.index(ast)
+        ast.children[0].optimise() # Optimise condition node first
+        ast.optimise() # Optimise If-subtree (might replace subtree)
+        for child in ast.parent.children[n_idx].children:
+            optimise_ast(child)
+        return
+
+    # General rule
+    for child in ast.children:
+        optimise_ast(child)
+    ast.optimise()
 
 
 def generate_llvm_ir(ast, output):

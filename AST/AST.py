@@ -176,6 +176,17 @@ class ASTBaseNode:
     def optimise(self):
         pass
 
+    def propagate_constants(self):
+        for c_idx in range(len(self.children)):
+            if isinstance(self.children[c_idx], ASTIdentifierNode):
+                entry = self.scope.lookup(self.children[c_idx].identifier)
+                if entry and entry.value is not None:
+                    new_node = ASTConstantNode(entry.value, entry.type_desc)
+                    new_node.parent = self
+                    new_node.scope = self.children[c_idx].scope
+                    self.children.pop(c_idx)
+                    self.children.insert(c_idx, new_node)
+
     def generateDot(self, output):
         output.write("""\
         digraph astgraph {
@@ -236,17 +247,18 @@ class ASTIdentifierNode(ASTBaseNode):
         self.value_register = None
 
     def optimise(self):
-        # If value known from Symbol Table, remove declaration & swap uses with constant value
+        # If value known from Symbol Table, swap with constant value
 
         # Lookup identifier in accessible scopes
         entry = self.scope.lookup(self.identifier)
-        if entry and entry.value:
+        if entry is not None and entry.value is not None:
             if isinstance(self.parent, ASTAssignmentNode) and self.parent.left() == self:
                 return
             if isinstance(self.parent, ASTDeclarationNode):
                 # Delete declaration
                 pass
-            else:
+            if isinstance(self.parent, ASTBinaryExpressionNode) or isinstance(self.parent, ASTLogicalNode) \
+               or isinstance(self.parent, ASTReturnNode):
                 # Replace with constant node
                 new_node = ASTConstantNode(entry.value, entry.type_desc)
                 new_node.parent = self.parent
@@ -575,6 +587,12 @@ class ASTAddressOfNode(ASTUnaryExpressionNode):
             logging.error("Cannot apply address-of operator & to a non-variable")
         return self.identifier().type() + "*"
 
+    def optimise(self):
+        # For safety reasons, delete value from symbol table if possible
+        entry = self.scope.lookup(self.children[0].identifier)
+        if entry:
+            entry.value = None
+
     def exit_llvm_text(self):
         temp_register = self.scope.temp_register
         llvm_ir = f"%{temp_register} = alloca {c2llvm_type(self.type())}\n"
@@ -636,21 +654,31 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         super(ASTAssignmentNode, self).__init__()
         self.name = "="
 
-        # If possible, assign/update the value of the assigned variable in the symbol table
-        if isinstance(self.right(), ASTConstantNode):
-            pass
-
     def type(self):
         return self.left().type()
 
     def value(self):
         return self.right().value()
 
+    def optimise(self):
+        # If possible, update the value in the symbol table
+        if isinstance(self.children[1], ASTConstantNode):
+            entry = self.scope.lookup(self.children[0].identifier)
+            if entry:
+                entry.value = self.children[1].value()
+
     def exit_llvm_text(self):
         indentifier_register = self.left().value_register
         llvm_type = c2llvm_type(self.type())
         self.value_register = self.right().value_register  # We re-use the register from the rhs expression for this assignment expression
         return f"store {llvm_type} {self.right().value_register}, {llvm_type}* {indentifier_register}\n"
+
+    def populate_symbol_table(self):
+        # If the rhs is a constant, assign the symbol table value
+        if isinstance(self.children[1], ASTConstantNode):
+            entry = self.scope.lookup(self.children[0].identifier)
+            if entry:
+                entry.value = self.children[1].value()
 
 
 class ASTMultiplicationNode(ASTBinaryExpressionNode):
@@ -663,7 +691,7 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
             return self.left().value() * self.right().value()
 
     def optimise(self):
-        # Handles multiplication by 1 and 0
+        self.propagate_constants()
 
         rhs = int(self.right().value()) if isinstance(self.right(), ASTConstantNode) else None
         lhs = int(self.left().value()) if isinstance(self.left(), ASTConstantNode) else None
@@ -712,7 +740,7 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
         self.name = "/"
 
     def optimise(self):
-        # Handles division by 1 and, if possible, division by 0
+        self.propagate_constants()
 
         value = self.right().value()
         if value and int(value) == 1:
@@ -748,6 +776,7 @@ class ASTModuloNode(ASTBinaryExpressionNode):
         self.name = "%"
 
     def optimise(self):
+        self.propagate_constants()
 
         value = self.right().value()
         if value and int(value) == 1:
@@ -785,6 +814,7 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
         self.name = "+"
 
     def optimise(self):
+        self.propagate_constants()
 
         if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
@@ -806,6 +836,7 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
         self.name = "-"
 
     def optimise(self):
+        self.propagate_constants()
 
         if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
@@ -841,6 +872,7 @@ class ASTSmallerThanNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() < self.right().value())
@@ -863,6 +895,7 @@ class ASTLargerThanNode(ASTLogicalNode):
     
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() > self.right().value())
@@ -885,6 +918,7 @@ class ASTSmallerThanOrEqualNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() <= self.right().value())
@@ -907,6 +941,7 @@ class ASTLargerThanOrEqualNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() >= self.right().value())
@@ -929,6 +964,7 @@ class ASTEqualsNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() == self.right().value())
@@ -951,6 +987,7 @@ class ASTNotEqualsNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() != self.right().value())
@@ -973,6 +1010,7 @@ class ASTLogicalAndNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() and self.right().value())
@@ -996,6 +1034,7 @@ class ASTLogicalOrNode(ASTLogicalNode):
         
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
+        self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() or self.right().value())
@@ -1093,19 +1132,27 @@ class ASTDeclarationNode(ASTBaseNode):
 
     def optimise(self):
         # Prune declarations for unused variables
-        STEntry = self.scope.lookup(self.identifier().value)
+        STEntry = self.scope.lookup(self.identifier().identifier)
         if STEntry and not STEntry.used:
-            # self.parent.children.pop(self.c_idx)
-            # NOTE: Above doesn't work when previous children have been popped because c_idx is no longer correct
             self.parent.children.pop(self.parent.children.index(self))
             self = None
+        elif STEntry and STEntry.used:
+             # If possible, update the value of the variable in the symbol table
+            value = None
+            if len(self.children) > 2 and isinstance(self.children[2], ASTConstantNode):
+                value = self.children[2].value()
+            STEntry.value = value
 
     def populate_symbol_table(self):
         type_spec = self.type()
         identifier = self.identifier().identifier
 
         if identifier not in self.scope.table:
-            self.scope.table[identifier] = STT.STTEntry(identifier, type_spec)
+            # If possible, assign the value of the assigned variable in the symbol table
+            value = None
+            if len(self.children) > 2 and isinstance(self.children[2], ASTConstantNode):
+                value = self.children[2].value()
+            self.scope.table[identifier] = STT.STTEntry(identifier, type_spec, value=value)
         else:
             logging.error(f"The variable '{identifier}' was redeclared")
             exit()
@@ -1157,11 +1204,11 @@ class ASTIfStmtNode(ASTBaseNode):
             new_tree = None
             # If not 0, replace this node with the 'true' subtree
             if cond_node.children[0].value() != 0:
-                new_tree = self.children[1].children[0].children[0] # self->IfTrue->compound->actual child
+                new_tree = self.children[1].children[0] # self->IfTrue->compound
             # Else, replace it with the 'false' subtree if one exists, otherwise just delete this node
             else:
                 if len(self.children) > 2:
-                    new_tree = self.children[2].children[0].children[0]
+                    new_tree = self.children[2].children[0]
                 else:
                     new_tree = -1
             
@@ -1171,7 +1218,6 @@ class ASTIfStmtNode(ASTBaseNode):
             elif new_tree is not None:
                 # Replace this node
                 new_tree.parent = self.parent
-                new_tree.scope = self.scope
                 c_idx = self.parent.children.index(self)
                 self.parent.children.pop(c_idx)
                 self.parent.children.insert(c_idx, new_tree)
@@ -1194,6 +1240,10 @@ class ASTIfConditionNode(ASTBaseNode):
     def __init__(self):
         super(ASTIfConditionNode, self).__init__()
         self.name = "IfCond"
+
+    def optimise(self):
+        # Constant propagation if possible
+        self.propagate_constants()
 
     def exit_llvm_text(self):
         cond_register = self.scope.temp_register - 1
@@ -1534,6 +1584,15 @@ class ASTReturnNode(ASTBaseNode):
         return llvmir
 
     def optimise(self):
+        # Check if child value known at compiletime
+        if isinstance(self.children[0], ASTIdentifierNode):
+            entry = self.scope.lookup(self.children[0].identifier)
+            if entry and entry.value:
+                new_node = ASTConstantNode(entry.value, entry.type_desc)
+                new_node.parent = self
+                new_node.scope = self.children[0].scope
+                self.children[0] = new_node
+
         # Prune siblings that come after this return
         if self.c_idx is not None:
             self.parent.children = self.parent.children[:self.c_idx+1]
