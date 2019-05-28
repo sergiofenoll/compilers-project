@@ -687,7 +687,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
-        node = AST.ASTFunctionDefinitionNode(ctx=ctx)
+        node = AST.ASTFunctionDefinitionNode(allocator = AST.Allocator(), ctx=ctx)
         node.parent = self.current_node
         scope = STT.STTNode()
         scope.parent = self.current_node.scope

@@ -99,11 +99,13 @@ class STTEntry:
         self.args = args or []
         self.value = value
         self.used = used
+        self.memory_location = None
 
         # LLVM register maintenance
         self.register = register
         self.aux_register = None  # Used by arrays with expressions, required by LLVM
         self.aux_type = None
+
 
     def dotRepresentation(self):
         return f"""

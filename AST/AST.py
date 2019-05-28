@@ -18,8 +18,44 @@ class TempRegisterCounter:
         self.last += 1
         return f"%{last}"
 
-
 temp_reg = TempRegisterCounter()
+
+
+class Allocator:
+
+    temp_regs = [f"$t{i}" for i in range(0, 10)]
+    float_regs = [f"$f{i}" for i in range(4, 11)]
+    all_regs = {"int": temp_regs, "float": float_regs}
+
+    def __init__(self):
+        self.available_regs = Allocator.all_regs
+        self.used_regs = list()
+        self.frame_size = None
+
+    def allocate_next_register(self, float=False):
+        t = "float" if float else "int"
+        reg = self.available_regs[t].pop(0)
+        #print(f"Allocating {t}-reg {reg}")
+        self.used_regs.append(reg)
+        return reg
+
+    def deallocate_register(self, reg, float=False):
+        t = "float" if float else "int"
+        #print(f"Deallocating {t}-reg {reg}")
+        self.available_regs[t].insert(0, reg)
+        self.used_regs.remove(reg)
+
+    def get_memory_address(self, identifier, scope):
+        count = 0
+        while scope.parent is not None:
+            try:
+                ix = count + list(scope.table.keys()).index(identifier)
+            except ValueError:
+                count += len(scope.table.keys())
+            scope = scope.parent
+        mem_addr = (ix + 1) * 4
+        return f"-{mem_addr}($sp)"
+
 
 
 def c2llvm_type(c_type):
@@ -145,6 +181,72 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
     return llvmir
 
 
+def generate_mips_expr(node, op):
+    """
+        Generate mips (binary) expression of the form: op d, t, s
+        Does not account for conversions (expects operands to have compatible types)
+    """
+
+    mips = ""
+    target_reg = ""
+    source_reg = ""
+
+    lhs = node.left()
+    rhs = node.right()
+    allocator = node.get_allocator()
+    float_type = False
+
+    # No implicit conversions: check types
+    if "float" in [lhs.type(), rhs.type()]:
+        if lhs.type() != rhs.type():
+            logging.error(f"line {node.line_info[0]}:{node.line_info[1]} Implicit conversion not supported.")
+        else:
+            float_type = True
+
+    # Get proper registers
+    if isinstance(lhs, ASTIdentifierNode) or isinstance(lhs, ASTBinaryExpressionNode):
+        target_reg = lhs.value_register
+        if target_reg is None:
+            target_reg = allocator.allocate_next_register(float_type)
+            load_op = "lwc1" if float_type else "lw"
+            memory_address = lhs.scope.lookup(lhs.identifier).memory_location
+            mips += f"{load_op} {target_reg}, {memory_address}\n"
+    if isinstance(rhs, ASTIdentifierNode) or isinstance(rhs, ASTBinaryExpressionNode):
+        source_reg = rhs.value_register
+        if source_reg is None:
+            source_reg = allocator.allocate_next_register(float_type)
+            load_op = "lwc1" if float_type else "lw"
+            memory_address = rhs.scope.lookup(rhs.identifier).memory_location
+            mips += f"{load_op} {source_reg}, {memory_address}\n"
+
+    immediate_operations = ["add", "div", "sub", "mul", "sgt", "seq", "sne"]
+    if isinstance(lhs, ASTConstantNode):
+        # Load lhs into register
+        target_reg = allocator.allocate_next_register(float_type)
+        mips += f"li {target_reg}, {lhs.value()}\n"    
+    if isinstance(rhs, ASTConstantNode):
+        if op not in immediate_operations:
+            # Load rhs into register
+            source_reg = allocator.allocate_next_register(float_type)
+            mips += f"li {source_reg}, {rhs.value()}\n"
+        else:
+            source_reg = rhs.value()
+
+    if op == "div" or op == "div.s":
+        mips += f"{op} {target_reg}, {source_reg}\n"
+        node.value_register = "$lo"
+        if isinstance(node, ASTModuloNode):
+            node.value_register = "$hi"
+    else:
+        mips += f"{op} {target_reg}, {target_reg}, {source_reg}\n"
+        node.value_register = target_reg
+
+    if not isinstance(rhs, ASTConstantNode):
+        allocator.deallocate_register(source_reg, float_type)
+    return mips
+
+
+
 class ASTBaseNode:
     def __init__(self, name=None, scope=None, ctx=None):
         self.parent = None
@@ -171,11 +273,26 @@ class ASTBaseNode:
     def exit_llvm_text(self):
         return ""
 
+    def enter_mips_data(self):
+        return ""
+
+    def exit_mips_data(self):
+        return ""
+
+    def enter_mips_text(self):
+        return ""
+
+    def exit_mips_text(self):
+        return ""
+
     def _generateLLVMIR(self):
         return ""
 
     def generateMIPS(self):
         return ""
+
+    def get_allocator(self):
+        return self.parent.get_allocator()
 
     def optimise(self):
         pass
@@ -288,7 +405,7 @@ class ASTIdentifierNode(ASTBaseNode):
         if entry:
             register = f"%{self.identifier}.scope{scope}.rank{rank}" if scope else f"@{self.identifier}"
             entry.register = register
-            self.value_register = register
+            #self.value_register = register
 
             # Set usage
             anc = self.find_ancestor(ASTDeclarationNode) or self.find_ancestor(ASTAssignmentNode)
@@ -778,6 +895,9 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fmul" if self.type() == "float" else "mul")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "mul.s" if self.type() == "float" else "mul")
+
 
 class ASTDivisionNode(ASTBinaryExpressionNode):
     def __init__(self, c_idx, ctx=None):
@@ -813,6 +933,9 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fdiv" if self.type() == "float" else "sdiv")
+
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "div.s" if self.type() == "float" else "div")
 
 
 class ASTModuloNode(ASTBinaryExpressionNode):
@@ -856,6 +979,9 @@ class ASTModuloNode(ASTBinaryExpressionNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "srem")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "div.s" if self.type() == "float" else "div")
+
 
 class ASTAdditionNode(ASTBinaryExpressionNode):
     def __init__(self,ctx=None):
@@ -882,6 +1008,9 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fadd" if self.type() == "float" else "add")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "add.s" if self.type() == "float" else "add") 
+
 
 class ASTSubtractionNode(ASTBinaryExpressionNode):
     def __init__(self, ctx=None):
@@ -907,6 +1036,9 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fsub" if self.type() == "float" else "sub")
+
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "sub.s" if self.type() == "float" else "sub")
 
 
 class ASTLogicalNode(ASTBinaryExpressionNode):
@@ -944,6 +1076,9 @@ class ASTSmallerThanNode(ASTLogicalNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp olt" if self.float_op() else "icmp slt")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "slt")
+
 
 class ASTLargerThanNode(ASTLogicalNode):
     def __init__(self, ctx=None):
@@ -966,6 +1101,9 @@ class ASTLargerThanNode(ASTLogicalNode):
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp ogt" if self.float_op() else "icmp sgt")
+
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "sgt")
 
 
 class ASTSmallerThanOrEqualNode(ASTLogicalNode):
@@ -990,6 +1128,9 @@ class ASTSmallerThanOrEqualNode(ASTLogicalNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp ole" if self.float_op() else "icmp sle")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "sle")
+
 
 class ASTLargerThanOrEqualNode(ASTLogicalNode):
     def __init__(self, ctx=None):
@@ -1012,6 +1153,9 @@ class ASTLargerThanOrEqualNode(ASTLogicalNode):
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp oge" if self.float_op() else "icmp sge")
+
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "sge")
 
 
 class ASTEqualsNode(ASTLogicalNode):
@@ -1036,6 +1180,9 @@ class ASTEqualsNode(ASTLogicalNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp oeq" if self.float_op() else "icmp eq")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "seq")
+
 
 class ASTNotEqualsNode(ASTLogicalNode):
     def __init__(self, ctx=None):
@@ -1058,6 +1205,9 @@ class ASTNotEqualsNode(ASTLogicalNode):
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "fcmp one" if self.float_op() else "icmp ne")
+
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "sne")
 
 
 class ASTLogicalAndNode(ASTLogicalNode):
@@ -1083,6 +1233,9 @@ class ASTLogicalAndNode(ASTLogicalNode):
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "and")
 
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "and")
+
 
 class ASTLogicalOrNode(ASTLogicalNode):
     def __init__(self, ctx=None):
@@ -1105,6 +1258,9 @@ class ASTLogicalOrNode(ASTLogicalNode):
 
     def exit_llvm_text(self):
         return generate_llvm_expr(self, "or")
+
+    def exit_mips_text(self):
+        return generate_mips_expr(self, "or")
 
 
 class ASTDeclarationNode(ASTBaseNode):
@@ -1186,6 +1342,29 @@ class ASTDeclarationNode(ASTBaseNode):
                 llvm_ir += f" {value}\n"
 
         return llvm_ir
+
+    def exit_mips_text(self):
+        # Store variable in memory
+
+        float_type = False if self.type() != "float" else True
+        mips = ""
+
+        source_reg = self.initializer().value_register
+        if isinstance(self.initializer(), ASTConstantNode):
+            init_reg = self.get_allocator().allocate_next_register(float_type)
+            mips += f"li {init_reg}, {self.initializer().value()}\n"
+            source_reg = init_reg
+            self.get_allocator().deallocate_register(init_reg, float_type)
+
+        mem_addr = self.get_allocator().get_memory_address(self.identifier().identifier, self.scope)
+        mips += f"sw {source_reg}, {mem_addr}\n"
+
+        # Update Symbol Table
+        entry = self.scope.lookup(self.identifier().identifier)
+        entry.memory_location = mem_addr
+
+        return mips
+
 
     def optimise(self):
         STEntry = self.scope.lookup(self.identifier().identifier)
@@ -1673,9 +1852,13 @@ class ASTCompoundStmtNode(ASTBaseNode):
 
 
 class ASTFunctionDefinitionNode(ASTBaseNode):
-    def __init__(self, ctx=None):
+    def __init__(self, allocator=None, ctx=None):
         super(ASTFunctionDefinitionNode, self).__init__(ctx=ctx)
         self.name = "FuncDef"
+        self.allocator = allocator
+
+    def get_allocator(self):
+        return self.allocator
 
     def enter_llvm_text(self):
         type_specifier = c2llvm_type(self.returnType().type())

@@ -76,7 +76,7 @@ def prune_unused_variables(ast):
         prune_unused_variables(child)
 
 
-def generate_llvm_ir(ast, output):
+def generate_mips(ast, output):
     stack = list()
     parent_stack = list()
     stack.append(ast)
@@ -85,8 +85,8 @@ def generate_llvm_ir(ast, output):
     while stack:
         node = stack.pop()
 
-        data += node.enter_llvm_data()
-        text += node.enter_llvm_text()
+        data += node.enter_mips_data()
+        text += node.enter_mips_text()
 
         parent_stack.append(node)
         for child in node.children[::-1]:
@@ -96,8 +96,8 @@ def generate_llvm_ir(ast, output):
             if not last_parent.children or last_parent.children[-1] == node:
                 node = parent_stack.pop()
 
-                data += node.exit_llvm_data()
-                text += node.exit_llvm_text()
+                data += node.exit_mips_data()
+                text += node.exit_mips_text()
 
             else:
                 break
@@ -136,12 +136,12 @@ def main(argv):
 
     try:
         output_dir = os.path.dirname(argv[2])
-        output_llvm = argv[2]
-        output_filename = output_llvm.split("/")[-1].rsplit(".", 1)[0]
+        output_mips = argv[2]
+        output_filename = output_mips.split("/")[-1].rsplit(".", 1)[0]
     except IndexError:
         output_filename = input_filepath.split("/")[-1].rsplit(".", 1)[0]
         output_dir = os.path.dirname(argv[1])
-        output_llvm = os.path.join(output_dir, output_filename + ".ll")
+        output_mips = os.path.join(output_dir, output_filename + ".asm")
 
     output_ast = os.path.join(output_dir, output_filename + ".ast.dot")
     output_stt = os.path.join(output_dir, output_filename + ".stt.dot")
@@ -178,9 +178,8 @@ def main(argv):
         ast.generateDot(astf)
     with open(output_stt, "w") as sttf:
         stt.generateDot(sttf)
-    with open(output_llvm, mode="wt", encoding="utf-8") as irf:
-        generate_llvm_ir(ast, irf)
-    with open(outp)
+    with open(output_mips, mode="wt", encoding="utf-8") as irf:
+        generate_mips(ast, irf)
 
 
 if __name__ == '__main__':

@@ -1,16 +1,14 @@
-#include <stdio.h>
+void f(int* k) {
+    *k = 69;
+}
 
 int main() {
-    int a = 20 + 5; // 25
-    a -= 5 * 2; // 25 - 10 = 15
-    a += 2 * 2 + 1; // 15 + 5 = 20
-    a /= 1 + 1; // 20 / 2 = 10
-    a *= 2 * 2; // 10 * 4 = 40
-    
-    int b = 5 * 2;
-    b = 10 + 10;
-    
-    c = 4;
 
-    return 20;
+    int a = 5 + 5;
+    f(&a);
+    int b = a * 2;
+    f(&b);
+    int c = b / 2;
+    f(&c);
+    return 0;
 }
