@@ -52,8 +52,8 @@ def optimise_ast(ast):
         optimise_ast(child)
     try:
         ast.optimise()
-    except:
-        pass
+    except Exception as e:
+        print(f"[WARNING] Error while optimising node: {e}")
 
 
 def generate_llvm_ir(ast, output):

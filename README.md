@@ -50,6 +50,7 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
 - Unreachable/dead code:
   - No code after return
   - No code after break/continue
+- Constant folding and propagation
 
 ### Testfiles:
 

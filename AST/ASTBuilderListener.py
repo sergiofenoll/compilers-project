@@ -229,6 +229,8 @@ class ASTBuilder(CListener):
         operationNode = AST.ASTMultiplicationNode(c_idx = 1)
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
@@ -248,6 +250,8 @@ class ASTBuilder(CListener):
         operationNode = AST.ASTDivisionNode(c_idx = 1)
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
@@ -267,6 +271,8 @@ class ASTBuilder(CListener):
         operationNode = AST.ASTAdditionNode()
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
@@ -286,6 +292,8 @@ class ASTBuilder(CListener):
         operationNode = AST.ASTSubtractionNode()
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 

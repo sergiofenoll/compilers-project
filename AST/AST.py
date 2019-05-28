@@ -721,8 +721,8 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
     def optimise(self):
         self.propagate_constants()
 
-        rhs = int(self.right().value()) if isinstance(self.right(), ASTConstantNode) else None
-        lhs = int(self.left().value()) if isinstance(self.left(), ASTConstantNode) else None
+        rhs = self.right().value() if isinstance(self.right(), ASTConstantNode) else None
+        lhs = self.left().value() if isinstance(self.left(), ASTConstantNode) else None
 
         if rhs == 0 or lhs == 0:
             # Evaluates to 0
