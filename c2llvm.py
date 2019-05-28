@@ -34,7 +34,6 @@ def optimise_ast(ast):
 
         if n_idx is not None:
             if ast != ast.parent.children[n_idx]:
-                print(ast.parent.children[n_idx])
                 optimise_ast(ast.parent.children[n_idx])
         return
 
@@ -51,7 +50,10 @@ def optimise_ast(ast):
     # General rule
     for child in ast.children:
         optimise_ast(child)
-    ast.optimise()
+    try:
+        ast.optimise()
+    except:
+        pass
 
 
 def generate_llvm_ir(ast, output):

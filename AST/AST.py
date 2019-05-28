@@ -187,6 +187,15 @@ class ASTBaseNode:
                     self.children.pop(c_idx)
                     self.children.insert(c_idx, new_node)
 
+    def find_ancestor(self, anc_type):
+        # Returns ancestor of required type. If none exists, returns None
+        anc = self.parent
+        while anc is not None:
+            if isinstance(anc, anc_type):
+                return anc
+            anc = anc.parent
+        return None
+
     def generateDot(self, output):
         output.write("""\
         digraph astgraph {
@@ -648,6 +657,18 @@ class ASTBinaryExpressionNode(ASTExpressionNode):
     def type(self):
         return get_expression_type(self)
 
+    def result_type(self):
+        """
+            To be used in constant folding.
+            If this expression is folded as part of a declaration/assignment, returns the type of the variable.
+            Otherwise, returns the 'default' expression type.
+        """
+
+        anc = self.find_ancestor(ASTDeclarationNode) or self.find_ancestor(ASTAssignmentNode)
+        if anc:
+            return anc.type()
+        return get_expression_type(self)
+
 
 class ASTAssignmentNode(ASTBinaryExpressionNode):
     def __init__(self):
@@ -705,7 +726,7 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
 
         if rhs == 0 or lhs == 0:
             # Evaluates to 0
-            new_node = ASTConstantNode(0, "int")
+            new_node = ASTConstantNode(0, get_expression_type(self))
             new_node.parent = self.parent
             new_node.scope = self.scope
             c_idx = self.parent.children.index(self)
@@ -729,7 +750,11 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
 
         elif lhs is not None and rhs is not None:
             # Evaluate expression in compiler
-            new_node = ASTConstantNode(lhs * rhs, get_expression_type(self))
+            value = lhs * rhs
+            expr_type = self.result_type()
+            if "float" not in expr_type:
+                value = int(value)
+            new_node = ASTConstantNode(value, expr_type)
             new_node.parent = self.parent
             new_node.scope = self.scope
             c_idx = self.parent.children.index(self)
@@ -762,7 +787,7 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
         elif isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
             value = self.left().value() / self.right().value()
-            expr_type = get_expression_type(self)
+            expr_type = self.result_type()
             if expr_type != "float":
                 value = int(value)
             new_node = ASTConstantNode(value, expr_type)
@@ -797,7 +822,11 @@ class ASTModuloNode(ASTBinaryExpressionNode):
             self = new_node
         elif isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
-            new_node = ASTConstantNode(self.left().value() % self.right().value(), get_expression_type(self))
+            value = self.left().value() % self.right().value()
+            expr_type = self.result_type()
+            if "float" not in expr_type:
+                value = int(value)
+            new_node = ASTConstantNode(value, expr_type)
             new_node.parent = self.parent
             new_node.scope = self.scope
             c_idx = self.parent.children.index(self)
@@ -825,7 +854,11 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
 
         if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
-            new_node = ASTConstantNode(self.left().value() + self.right().value(), get_expression_type(self))
+            value = self.left().value() + self.right().value()
+            expr_type = self.result_type()
+            if "float" not in expr_type:
+                value = int(value)
+            new_node = ASTConstantNode(value, expr_type)
             new_node.parent = self.parent
             new_node.scope = self.scope
             c_idx = self.parent.children.index(self)
@@ -847,7 +880,11 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
 
         if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
-            new_node = ASTConstantNode(self.left().value() - self.right().value(), get_expression_type(self))
+            value = self.left().value() - self.right().value()
+            expr_type = self.result_type()
+            if "float" not in expr_type:
+                value = int(value)
+            new_node = ASTConstantNode(value, expr_type)
             new_node.parent = self.parent
             new_node.scope = self.scope
             c_idx = self.parent.children.index(self)
