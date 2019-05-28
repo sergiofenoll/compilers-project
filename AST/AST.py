@@ -287,7 +287,15 @@ class ASTIdentifierNode(ASTBaseNode):
             register = f"%{self.identifier}.scope{scope}.rank{rank}" if scope else f"@{self.identifier}"
             entry.register = register
             self.value_register = register
-            entry.used = True
+
+            # Set usage
+            anc = self.find_ancestor(ASTDeclarationNode) or self.find_ancestor(ASTAssignmentNode)
+            if not anc:
+                entry.used = True
+            else:
+                if anc.identifier().identifier != self.identifier:
+                    entry.used = True
+            
         else:
             logging.error(f"The identifier '{self.identifier}' was used before being declared")
             exit()
@@ -677,6 +685,9 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
 
     def type(self):
         return self.left().type()
+
+    def identifier(self):
+        return self.left()
 
     def value(self):
         return self.right().value()
@@ -1175,12 +1186,8 @@ class ASTDeclarationNode(ASTBaseNode):
         return llvm_ir
 
     def optimise(self):
-        # Prune declarations for unused variables
         STEntry = self.scope.lookup(self.identifier().identifier)
-        if STEntry and not STEntry.used:
-            self.parent.children.pop(self.parent.children.index(self))
-            self = None
-        elif STEntry and STEntry.used:
+        if STEntry:
              # If possible, update the value of the variable in the symbol table
             value = None
             if len(self.children) > 2 and isinstance(self.children[2], ASTConstantNode):

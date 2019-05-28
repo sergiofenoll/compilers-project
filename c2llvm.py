@@ -56,6 +56,26 @@ def optimise_ast(ast):
         print(f"[WARNING] Error while optimising node: {e}")
 
 
+def prune_unused_variables(ast):
+
+    if isinstance(ast, AST.ASTDeclarationNode) or isinstance(ast, AST.ASTAssignmentNode):
+        identifier = ast.identifier().identifier
+        entry = ast.scope.lookup(identifier)
+        if entry and not entry.used:
+            # Prune this assignment / declaration
+            n_idx = ast.parent.children.index(ast)
+            ast.parent.children.pop(n_idx)
+            try:
+                prune_unused_variables(ast.parent.children[n_idx])
+            except IndexError:
+                # Last node was pruned
+                pass
+            return
+    
+    for child in ast.children:
+        prune_unused_variables(child)
+
+
 def generate_llvm_ir(ast, output):
     stack = list()
     parent_stack = list()
@@ -152,6 +172,7 @@ def main(argv):
     populate_symbol_table(ast)
     type_checking(ast)
     optimise_ast(ast)
+    prune_unused_variables(ast)
 
     with open(output_ast, "w") as astf:
         ast.generateDot(astf)

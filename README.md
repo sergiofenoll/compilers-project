@@ -51,6 +51,7 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
   - No code after return
   - No code after break/continue
 - Constant folding and propagation
+- No declarations/assignments for unused variables
 
 ### Testfiles:
 
