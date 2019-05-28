@@ -10,9 +10,7 @@ int main() {
     int b = 5 * 2;
     b = 10 + 10;
     
-    {
-        int c = 4;
-    }
+    c = 4;
 
     return 20;
 }

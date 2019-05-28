@@ -146,11 +146,15 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
 
 
 class ASTBaseNode:
-    def __init__(self, name=None, scope=None):
+    def __init__(self, name=None, scope=None, ctx=None):
         self.parent = None
         self.children = []
         self.scope = scope
         self.name = name or type(self).__name__
+        if ctx:
+            self.line_info = (ctx.start.line, ctx.start.column)
+        else:
+            self.line_info = None
 
         # Maintenance variable for dotfile generation
         self.__num = 0
@@ -231,8 +235,8 @@ class ASTBaseNode:
 
 
 class ASTCompilationUnitNode(ASTBaseNode):
-    def __init__(self, includes_stdio=False):
-        super(ASTCompilationUnitNode, self).__init__()
+    def __init__(self, includes_stdio=False, ctx=None):
+        super(ASTCompilationUnitNode, self).__init__(ctx=ctx)
         self.name = "CompilationUnit"
         self.includes_stdio = includes_stdio
 
@@ -249,8 +253,8 @@ class ASTCompilationUnitNode(ASTBaseNode):
 
 
 class ASTIdentifierNode(ASTBaseNode):
-    def __init__(self, value):
-        super(ASTIdentifierNode, self).__init__()
+    def __init__(self, value, ctx=None):
+        super(ASTIdentifierNode, self).__init__(ctx=ctx)
         self.identifier = value
         self.name = "Identifier:" + str(value)
         self.value_register = None
@@ -263,9 +267,7 @@ class ASTIdentifierNode(ASTBaseNode):
         if entry is not None and entry.value is not None:
             if isinstance(self.parent, ASTAssignmentNode) and self.parent.left() == self:
                 return
-            if isinstance(self.parent, ASTDeclarationNode):
-                # Delete declaration
-                pass
+
             if isinstance(self.parent, ASTBinaryExpressionNode) or isinstance(self.parent, ASTLogicalNode) \
                or isinstance(self.parent, ASTReturnNode):
                 # Replace with constant node
@@ -297,7 +299,7 @@ class ASTIdentifierNode(ASTBaseNode):
                     entry.used = True
             
         else:
-            logging.error(f"The identifier '{self.identifier}' was used before being declared")
+            logging.error(f"line {self.line_info[0]}:{self.line_info[1]} The identifier '{self.identifier}' was used before being declared")
             exit()
 
     def type(self):
@@ -314,8 +316,8 @@ class ASTIdentifierNode(ASTBaseNode):
 
 
 class ASTConstantNode(ASTBaseNode):
-    def __init__(self, value, type_specifier):
-        super(ASTConstantNode, self).__init__()
+    def __init__(self, value, type_specifier, ctx=None):
+        super(ASTConstantNode, self).__init__(ctx=ctx)
         self.__value = value
         self.type_specifier = type_specifier
         self.name = "Constant:" + str(value)
@@ -340,8 +342,8 @@ class ASTConstantNode(ASTBaseNode):
 
 
 class ASTStringLiteralNode(ASTBaseNode):
-    def __init__(self, value):
-        super(ASTStringLiteralNode, self).__init__()
+    def __init__(self, value, ctx=None):
+        super(ASTStringLiteralNode, self).__init__(ctx=ctx)
         self.__value = value
         self.name = "String literal:" + str(value.replace('"', '\\"'))
         self.size = None
@@ -396,14 +398,14 @@ class ASTStringLiteralNode(ASTBaseNode):
 
 
 class ASTExpressionNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTExpressionNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTExpressionNode, self).__init__(ctx=ctx)
         self.value_register = None
 
 
 class ASTUnaryExpressionNode(ASTExpressionNode):
-    def __init__(self):
-        super(ASTUnaryExpressionNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTUnaryExpressionNode, self).__init__(ctx=ctx)
         self.value = None
 
     def identifier(self):
@@ -417,8 +419,8 @@ class ASTUnaryExpressionNode(ASTExpressionNode):
 
 
 class ASTArrayAccessNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTArrayAccessNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTArrayAccessNode, self).__init__(ctx=ctx)
         self.name = "ArrayAccess"
 
     def indexer(self):
@@ -448,8 +450,8 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
 
 
 class ASTFunctionCallNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTFunctionCallNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTFunctionCallNode, self).__init__(ctx=ctx)
         self.name = "FunctionCall"
 
     def type(self):
@@ -495,32 +497,32 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
 
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTPostfixIncrementNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTPostfixIncrementNode, self).__init__(ctx=ctx)
         self.name = "post++"
 
 
 class ASTPostfixDecrementNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTPostfixDecrementNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTPostfixDecrementNode, self).__init__(ctx=ctx)
         self.name = "post--"
 
 
 class ASTPrefixIncrementNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTPrefixIncrementNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTPrefixIncrementNode, self).__init__(ctx=ctx)
         self.name = "pre++"
 
 
 class ASTPrefixDecrementNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTPrefixDecrementNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTPrefixDecrementNode, self).__init__(ctx=ctx)
         self.name = "pre--"
 
 
 class ASTUnaryPlusNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTUnaryPlusNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTUnaryPlusNode, self).__init__(ctx=ctx)
         self.name = "+"
 
     def value(self):
@@ -528,8 +530,8 @@ class ASTUnaryPlusNode(ASTUnaryExpressionNode):
 
 
 class ASTUnaryMinusNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTUnaryMinusNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTUnaryMinusNode, self).__init__(ctx=ctx)
         self.name = "-"
 
     def type(self):
@@ -551,8 +553,8 @@ class ASTUnaryMinusNode(ASTUnaryExpressionNode):
 
 
 class ASTLogicalNotNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTLogicalNotNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTLogicalNotNode, self).__init__(ctx=ctx)
         self.name = "!"
 
     def value(self):
@@ -569,8 +571,8 @@ class ASTLogicalNotNode(ASTUnaryExpressionNode):
 
 
 class ASTIndirectionNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTIndirectionNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTIndirectionNode, self).__init__(ctx=ctx)
 
     def type(self):
         if self.identifier().type()[-1] != "*":
@@ -596,8 +598,8 @@ class ASTIndirectionNode(ASTUnaryExpressionNode):
 
 
 class ASTAddressOfNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTAddressOfNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTAddressOfNode, self).__init__(ctx=ctx)
 
     def type(self):
         if not isinstance(self.identifier(), ASTIdentifierNode):
@@ -625,8 +627,8 @@ class ASTAddressOfNode(ASTUnaryExpressionNode):
 
 
 class ASTCastNode(ASTUnaryExpressionNode):
-    def __init__(self):
-        super(ASTCastNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTCastNode, self).__init__(ctx=ctx)
 
     def identifier(self):
         return self.children[1]
@@ -652,8 +654,8 @@ class ASTCastNode(ASTUnaryExpressionNode):
 
 
 class ASTBinaryExpressionNode(ASTExpressionNode):
-    def __init__(self, c_idx = None):
-        super(ASTBinaryExpressionNode, self).__init__()
+    def __init__(self, c_idx = None, ctx=None):
+        super(ASTBinaryExpressionNode, self).__init__(ctx=ctx)
         self.c_idx = c_idx
 
     def left(self):
@@ -679,8 +681,8 @@ class ASTBinaryExpressionNode(ASTExpressionNode):
 
 
 class ASTAssignmentNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTAssignmentNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTAssignmentNode, self).__init__(ctx=ctx)
         self.name = "="
 
     def type(self):
@@ -721,8 +723,8 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
 
 
 class ASTMultiplicationNode(ASTBinaryExpressionNode):
-    def __init__(self, c_idx):
-        super(ASTMultiplicationNode, self).__init__(c_idx)
+    def __init__(self, c_idx, ctx=None):
+        super(ASTMultiplicationNode, self).__init__(c_idx, ctx=ctx)
         self.name = "*"
 
     def value(self):
@@ -778,8 +780,8 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
 
 
 class ASTDivisionNode(ASTBinaryExpressionNode):
-    def __init__(self, c_idx):
-        super(ASTDivisionNode, self).__init__(c_idx)
+    def __init__(self, c_idx, ctx=None):
+        super(ASTDivisionNode, self).__init__(c_idx, ctx=ctx)
         self.name = "/"
 
     def optimise(self):
@@ -814,8 +816,8 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
 
 
 class ASTModuloNode(ASTBinaryExpressionNode):
-    def __init__(self, c_idx):
-        super(ASTModuloNode, self).__init__(c_idx)
+    def __init__(self, c_idx, ctx=None):
+        super(ASTModuloNode, self).__init__(c_idx, ctx=ctx)
         self.name = "%"
 
     def optimise(self):
@@ -856,8 +858,8 @@ class ASTModuloNode(ASTBinaryExpressionNode):
 
 
 class ASTAdditionNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTAdditionNode, self).__init__()
+    def __init__(self,ctx=None):
+        super(ASTAdditionNode, self).__init__(ctx=ctx)
         self.name = "+"
 
     def optimise(self):
@@ -882,8 +884,8 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
 
 
 class ASTSubtractionNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTSubtractionNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTSubtractionNode, self).__init__(ctx=ctx)
         self.name = "-"
 
     def optimise(self):
@@ -908,8 +910,8 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
 
 
 class ASTLogicalNode(ASTBinaryExpressionNode):
-    def __init__(self):
-        super(ASTLogicalNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTLogicalNode, self).__init__(ctx=ctx)
         self.name = "LogicalNode"
 
     def type(self):
@@ -921,8 +923,8 @@ class ASTLogicalNode(ASTBinaryExpressionNode):
 
 
 class ASTSmallerThanNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTSmallerThanNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTSmallerThanNode, self).__init__(ctx=ctx)
         self.name = "<"
 
     def optimise(self):
@@ -944,8 +946,8 @@ class ASTSmallerThanNode(ASTLogicalNode):
 
 
 class ASTLargerThanNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTLargerThanNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTLargerThanNode, self).__init__(ctx=ctx)
         self.name = ">"
     
     def optimise(self):
@@ -967,8 +969,8 @@ class ASTLargerThanNode(ASTLogicalNode):
 
 
 class ASTSmallerThanOrEqualNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTSmallerThanOrEqualNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTSmallerThanOrEqualNode, self).__init__(ctx=ctx)
         self.name = "<="
 
     def optimise(self):
@@ -990,8 +992,8 @@ class ASTSmallerThanOrEqualNode(ASTLogicalNode):
 
 
 class ASTLargerThanOrEqualNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTLargerThanOrEqualNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTLargerThanOrEqualNode, self).__init__(ctx=ctx)
         self.name = ">="
 
     def optimise(self):
@@ -1013,8 +1015,8 @@ class ASTLargerThanOrEqualNode(ASTLogicalNode):
 
 
 class ASTEqualsNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTEqualsNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTEqualsNode, self).__init__(ctx=ctx)
         self.name = "=="
 
     def optimise(self):
@@ -1036,8 +1038,8 @@ class ASTEqualsNode(ASTLogicalNode):
 
 
 class ASTNotEqualsNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTNotEqualsNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTNotEqualsNode, self).__init__(ctx=ctx)
         self.name = "!="
 
     def optimise(self):
@@ -1059,8 +1061,8 @@ class ASTNotEqualsNode(ASTLogicalNode):
 
 
 class ASTLogicalAndNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTLogicalAndNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTLogicalAndNode, self).__init__(ctx=ctx)
         self.name = "&&"
 
     def optimise(self):
@@ -1083,8 +1085,8 @@ class ASTLogicalAndNode(ASTLogicalNode):
 
 
 class ASTLogicalOrNode(ASTLogicalNode):
-    def __init__(self):
-        super(ASTLogicalOrNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTLogicalOrNode, self).__init__(ctx=ctx)
         self.name = "||"
         
     def optimise(self):
@@ -1106,8 +1108,8 @@ class ASTLogicalOrNode(ASTLogicalNode):
 
 
 class ASTDeclarationNode(ASTBaseNode):
-    def __init__(self, c_idx = None):
-        super(ASTDeclarationNode, self).__init__()
+    def __init__(self, c_idx = None, ctx=None):
+        super(ASTDeclarationNode, self).__init__(ctx=ctx)
         self.name = "Decl"
         self.c_idx = c_idx
 
@@ -1205,7 +1207,8 @@ class ASTDeclarationNode(ASTBaseNode):
                 value = self.children[2].value()
             self.scope.table[identifier] = STT.STTEntry(identifier, type_spec, value=value)
         else:
-            logging.error(f"The variable '{identifier}' was redeclared")
+            if self.line_info:
+                logging.error(f"line {self.line_info[0]}:{self.line_info[1]} The variable '{identifier}' was redeclared")
             exit()
 
     def type(self):
@@ -1225,23 +1228,23 @@ class ASTDeclarationNode(ASTBaseNode):
 
 
 class ASTLabelStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTLabelStmtNode, self).__init__(name)
+    def __init__(self, name,ctx=None):
+        super(ASTLabelStmtNode, self).__init__(name, ctx=ctx)
 
 
 class ASTCaseStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTCaseStmtNode, self).__init__(name)
+    def __init__(self, name, ctx=None):
+        super(ASTCaseStmtNode, self).__init__(name, ctx=ctx)
 
 
 class ASTDefaultStmtNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTDefaultStmtNode, self).__init__(name)
+    def __init__(self, name, ctx=None):
+        super(ASTDefaultStmtNode, self).__init__(ctx=ctx)
 
 
 class ASTIfStmtNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTIfStmtNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTIfStmtNode, self).__init__(ctx=ctx)
         self.name = "If"
         self.cond_register = None
         self.true_label = None
@@ -1288,8 +1291,8 @@ class ASTIfStmtNode(ASTBaseNode):
 
 
 class ASTIfConditionNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTIfConditionNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTIfConditionNode, self).__init__(ctx=ctx)
         self.name = "IfCond"
 
     def optimise(self):
@@ -1324,8 +1327,8 @@ class ASTIfConditionNode(ASTBaseNode):
 
 
 class ASTIfTrueNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTIfTrueNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTIfTrueNode, self).__init__(ctx=ctx)
         self.name = "IfTrue"
 
     def enter_llvm_text(self):
@@ -1342,8 +1345,8 @@ class ASTIfTrueNode(ASTBaseNode):
 
 
 class ASTIfFalseNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTIfFalseNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTIfFalseNode, self).__init__(ctx=ctx)
         self.name = "IfFalse"
 
     def enter_llvm_text(self):
@@ -1360,14 +1363,14 @@ class ASTIfFalseNode(ASTBaseNode):
 
 
 class ASTSwitchStmtNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTSwitchStmtNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTSwitchStmtNode, self).__init__(ctx=ctx)
         self.name = "Switch"
 
 
 class ASTWhileStmtNode(ASTBaseNode):
-    def __init__(self, name="While"):
-        super(ASTWhileStmtNode, self).__init__(name)
+    def __init__(self, name="While", ctx=None):
+        super(ASTWhileStmtNode, self).__init__(name, ctx=ctx)
         self.cond_label = None
         self.true_label = None
         self.finish_label = None
@@ -1389,8 +1392,8 @@ class ASTWhileStmtNode(ASTBaseNode):
 
 
 class ASTWhileCondNode(ASTWhileStmtNode):
-    def __init__(self):
-        super(ASTWhileCondNode, self).__init__("WhileCond")
+    def __init__(self, ctx=None):
+        super(ASTWhileCondNode, self).__init__("WhileCond", ctx=ctx)
 
     def optimise(self):
         self.propagate_constants()
@@ -1429,8 +1432,8 @@ class ASTWhileCondNode(ASTWhileStmtNode):
 
 
 class ASTWhileTrueNode(ASTWhileStmtNode):
-    def __init__(self):
-        super(ASTWhileTrueNode, self).__init__("WhileTrue")
+    def __init__(self, ctx=None):
+        super(ASTWhileTrueNode, self).__init__("WhileTrue", ctx=ctx)
 
     def enter_llvm_text(self):
         # Set body scope counter to outer scope counter
@@ -1448,8 +1451,8 @@ class ASTWhileTrueNode(ASTWhileStmtNode):
 
 
 class ASTForStmtNode(ASTBaseNode):
-    def __init__(self, name="For"):
-        super(ASTForStmtNode, self).__init__(name)
+    def __init__(self, name="For", ctx=None):
+        super(ASTForStmtNode, self).__init__(name, ctx=ctx)
         self.cond_label = None
         self.updater_label = None
         self.true_label = None
@@ -1466,8 +1469,8 @@ class ASTForStmtNode(ASTBaseNode):
 
 
 class ASTForInitNode(ASTForStmtNode):
-    def __init__(self):
-        super(ASTForInitNode, self).__init__("ForInit")
+    def __init__(self, ctx=None):
+        super(ASTForInitNode, self).__init__("ForInit", ctx=ctx)
 
     def enter_llvm_text(self):
         # Newline for readability
@@ -1480,8 +1483,8 @@ class ASTForInitNode(ASTForStmtNode):
 
 
 class ASTForCondNode(ASTForStmtNode):
-    def __init__(self):
-        super(ASTForCondNode, self).__init__("ForCond")
+    def __init__(self, ctx=None):
+        super(ASTForCondNode, self).__init__("ForCond", ctx=ctx)
 
     def enter_llvm_text(self):
         counter = self.scope.temp_register
@@ -1513,8 +1516,8 @@ class ASTForCondNode(ASTForStmtNode):
 
 
 class ASTForUpdaterNode(ASTForStmtNode):
-    def __init__(self):
-        super(ASTForUpdaterNode, self).__init__("ForUpdater")
+    def __init__(self, ctx=None):
+        super(ASTForUpdaterNode, self).__init__("ForUpdater", ctx=ctx)
 
     def enter_llvm_text(self):
 
@@ -1528,8 +1531,8 @@ class ASTForUpdaterNode(ASTForStmtNode):
 
 
 class ASTForTrueNode(ASTForStmtNode):
-    def __init__(self):
-        super(ASTForTrueNode, self).__init__("ForTrue")
+    def __init__(self, ctx=None):
+        super(ASTForTrueNode, self).__init__("ForTrue", ctx=ctx)
 
     def enter_llvm_text(self):
         # Set scope counter to parent scope counter
@@ -1547,13 +1550,13 @@ class ASTForTrueNode(ASTForStmtNode):
 
 
 class ASTGotoNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTGotoNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTGotoNode, self).__init__(ctx=ctx)
 
 
 class ASTContinueNode(ASTBaseNode):
-    def __init__(self, c_idx = None):
-        super(ASTContinueNode, self).__init__()
+    def __init__(self, c_idx = None, ctx=None):
+        super(ASTContinueNode, self).__init__(ctx=ctx)
         self.c_idx = c_idx
 
     def exit_llvm_text(self):
@@ -1575,8 +1578,8 @@ class ASTContinueNode(ASTBaseNode):
 
 
 class ASTBreakNode(ASTBaseNode):
-    def __init__(self, c_idx = None):
-        super(ASTBreakNode, self).__init__()
+    def __init__(self, c_idx = None, ctx=None):
+        super(ASTBreakNode, self).__init__(ctx=ctx)
         self.c_idx = c_idx
 
     def exit_llvm_text(self):
@@ -1598,8 +1601,8 @@ class ASTBreakNode(ASTBaseNode):
 
 
 class ASTReturnNode(ASTBaseNode):
-    def __init__(self, c_idx):
-        super(ASTReturnNode, self).__init__()
+    def __init__(self, c_idx, ctx=None):
+        super(ASTReturnNode, self).__init__(ctx=ctx)
         self.name = "Return"
         self.c_idx = c_idx
 
@@ -1664,14 +1667,14 @@ class ASTReturnNode(ASTBaseNode):
 
 
 class ASTCompoundStmtNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTCompoundStmtNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTCompoundStmtNode, self).__init__(ctx=ctx)
         self.name = "CompoundStmt"
 
 
 class ASTFunctionDefinitionNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTFunctionDefinitionNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTFunctionDefinitionNode, self).__init__(ctx=ctx)
         self.name = "FuncDef"
 
     def enter_llvm_text(self):
@@ -1731,8 +1734,8 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
 
 
 class ASTParameterTypeList(ASTBaseNode):
-    def __init__(self):
-        super(ASTParameterTypeList, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTParameterTypeList, self).__init__(ctx=ctx)
         self.name = "ParamList"
 
     def _generateLLVMIR(self):
@@ -1757,8 +1760,8 @@ class ASTParameterTypeList(ASTBaseNode):
 
 
 class ASTTypeSpecifierNode(ASTBaseNode):
-    def __init__(self, tspec):
-        super(ASTTypeSpecifierNode, self).__init__()
+    def __init__(self, tspec, ctx=None):
+        super(ASTTypeSpecifierNode, self).__init__(ctx=ctx)
         self.tspec = tspec
         self.name = "Type:" + str(tspec)
 
@@ -1767,13 +1770,13 @@ class ASTTypeSpecifierNode(ASTBaseNode):
 
 
 class ASTExprListNode(ASTBaseNode):
-    def __init__(self, name):
-        super(ASTExprListNode, self).__init__(name)
+    def __init__(self, name, ctx=None):
+        super(ASTExprListNode, self).__init__(name, ctx=ctx)
 
 
 class ASTArrayDeclarationNode(ASTBaseNode):
-    def __init__(self):
-        super(ASTArrayDeclarationNode, self).__init__()
+    def __init__(self, ctx=None):
+        super(ASTArrayDeclarationNode, self).__init__(ctx=ctx)
         self.name = "ArrayDecl"
         self.value_register = None
 
