@@ -23,27 +23,40 @@ temp_reg = TempRegisterCounter()
 
 class Allocator:
 
-    temp_regs = [f"$t{i}" for i in range(0, 10)]
+    temp_regs = [f"$t{i}" for i in range(0, 2)] # TODO: RESET TO REAL AMOUNT
     float_regs = [f"$f{i}" for i in range(4, 11)]
     all_regs = {"int": temp_regs, "float": float_regs}
 
     def __init__(self):
         self.available_regs = Allocator.all_regs
-        self.used_regs = list()
-        self.frame_size = None
+        self.used_regs = {"int": list(), "float": list()}
+        self.spilled_regs = dict()
+        self.min_frame_size = None
 
     def allocate_next_register(self, float=False):
         t = "float" if float else "int"
-        reg = self.available_regs[t].pop(0)
-        #print(f"Allocating {t}-reg {reg}")
-        self.used_regs.append(reg)
-        return reg
+
+        if len(self.available_regs[t]):
+            reg = self.available_regs[t].pop(0)
+            self.used_regs[t].append(reg)
+            return reg, False
+        else:
+            # Spill
+            spilled_reg = self.used_regs[t][0]
+            memory_location = f"-{4 * (self.min_frame_size + len(self.spilled_regs.keys()) + 1)}($sp)"
+            self.spilled_regs[spilled_reg] = memory_location
+            return spilled_reg, True
 
     def deallocate_register(self, reg, float=False):
         t = "float" if float else "int"
-        #print(f"Deallocating {t}-reg {reg}")
-        self.available_regs[t].insert(0, reg)
-        self.used_regs.remove(reg)
+        if reg in self.spilled_regs:
+            memory_location = self.spilled_regs[reg]
+            self.spilled_regs.pop(reg)
+            return memory_location
+        else:
+            self.available_regs[t].insert(0, reg)
+            self.used_regs[t].remove(reg)
+            return None
 
     def get_memory_address(self, identifier, scope):
         count = 0
@@ -207,14 +220,18 @@ def generate_mips_expr(node, op):
     if isinstance(lhs, ASTIdentifierNode) or isinstance(lhs, ASTBinaryExpressionNode):
         target_reg = lhs.value_register
         if target_reg is None:
-            target_reg = allocator.allocate_next_register(float_type)
+            target_reg, spilled = allocator.allocate_next_register(float_type)
+            if spilled:
+                mips += f"sw {target_reg}, {allocator.spilled_regs[target_reg]}\n"
             load_op = "lwc1" if float_type else "lw"
             memory_address = lhs.scope.lookup(lhs.identifier).memory_location
             mips += f"{load_op} {target_reg}, {memory_address}\n"
     if isinstance(rhs, ASTIdentifierNode) or isinstance(rhs, ASTBinaryExpressionNode):
         source_reg = rhs.value_register
         if source_reg is None:
-            source_reg = allocator.allocate_next_register(float_type)
+            source_reg, spilled = allocator.allocate_next_register(float_type)
+            if spilled:
+                mips += f"sw {source_reg}, {allocatpr.spilled_regs[source_reg]}\n"
             load_op = "lwc1" if float_type else "lw"
             memory_address = rhs.scope.lookup(rhs.identifier).memory_location
             mips += f"{load_op} {source_reg}, {memory_address}\n"
@@ -222,27 +239,40 @@ def generate_mips_expr(node, op):
     immediate_operations = ["add", "div", "sub", "mul", "sgt", "seq", "sne"]
     if isinstance(lhs, ASTConstantNode):
         # Load lhs into register
-        target_reg = allocator.allocate_next_register(float_type)
+        target_reg, spilled = allocator.allocate_next_register(float_type)
+        if spilled:
+                mips += f"sw {target_reg}, {allocator.spilled_regs[target_reg]}\n"
         mips += f"li {target_reg}, {lhs.value()}\n"    
     if isinstance(rhs, ASTConstantNode):
         if op not in immediate_operations:
             # Load rhs into register
-            source_reg = allocator.allocate_next_register(float_type)
+            source_reg, spilled = allocator.allocate_next_register(float_type)
+            if spilled:
+                mips += f"sw {source_reg}, {allocatpr.spilled_regs[source_reg]}\n"
             mips += f"li {source_reg}, {rhs.value()}\n"
         else:
             source_reg = rhs.value()
 
     if op == "div" or op == "div.s":
-        mips += f"{op} {target_reg}, {source_reg}\n"
-        node.value_register = "$lo"
-        if isinstance(node, ASTModuloNode):
-            node.value_register = "$hi"
+        if not isinstance(rhs, ASTConstantNode):
+            move_op = ""
+            if isinstance(node, ASTModuloNode):
+                move_op = "mfhi"
+            else: # isinstance(ASTDivisionNode)
+                move_op = "mflo"
+            mips += f"{op} {target_reg}, {source_reg}\n"
+            mips += f"{move_op} {target_reg}\n"
+        else:
+            mips += f"{op} {target_reg}, {target_reg}, {source_reg}\n"
     else:
         mips += f"{op} {target_reg}, {target_reg}, {source_reg}\n"
-        node.value_register = target_reg
+    node.value_register = target_reg
 
     if not isinstance(rhs, ASTConstantNode):
-        allocator.deallocate_register(source_reg, float_type)
+        memory_location = allocator.deallocate_register(source_reg, float_type)
+        if memory_location:
+            # Spilled register is free again, restore value
+            mips += f"lw {source_reg}, {memory_location}\n"
     return mips
 
 
@@ -1883,6 +1913,10 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
 
     def exit_llvm_text(self):
         return "}\n"
+
+    def enter_mips_text(self):
+        self.allocator.min_frame_size = self.scope.variable_count() * 4
+        return ""
 
     def returnType(self):
         return self.children[0]

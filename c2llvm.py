@@ -180,7 +180,6 @@ def main(argv):
         stt.generateDot(sttf)
     with open(output_llvm, mode="wt", encoding="utf-8") as irf:
         generate_llvm_ir(ast, irf)
-    with open(outp)
 
 
 if __name__ == '__main__':

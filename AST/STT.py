@@ -30,6 +30,9 @@ class STTNode:
                 </tr>
                 """
 
+    def variable_count(self):
+        return sum([entry.size for entry in self.table.values()]) + sum([child.variable_count() for child in self.children])
+
     def lookup(self, name):
         # Searches for name in scope & ancestors of scope. If found, return entry. If not found, return None
 
@@ -100,6 +103,7 @@ class STTEntry:
         self.value = value
         self.used = used
         self.memory_location = None
+        self.size = max(1, len(self.args))
 
         # LLVM register maintenance
         self.register = register
