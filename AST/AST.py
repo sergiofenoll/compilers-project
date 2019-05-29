@@ -23,7 +23,7 @@ temp_reg = TempRegisterCounter()
 
 class Allocator:
 
-    temp_regs = [f"$t{i}" for i in range(0, 2)] # TODO: RESET TO REAL AMOUNT
+    temp_regs = [f"$t{i}" for i in range(0, 10)]
     float_regs = [f"$f{i}" for i in range(4, 11)]
     all_regs = {"int": temp_regs, "float": float_regs}
 
@@ -33,9 +33,15 @@ class Allocator:
         self.spilled_regs = dict()
         self.min_frame_size = None
 
+    def push_register_on_stack(self, register):
+        # Generates the code necessary to push a given register on the stack, taking care of the stack pointer
+        mips = ""
+        mips += f"sw {register}, 0($sp)\n"
+        mips += "add $sp, $sp, 4\n"
+        return mips
+
     def allocate_next_register(self, float=False):
         t = "float" if float else "int"
-
         if len(self.available_regs[t]):
             reg = self.available_regs[t].pop(0)
             self.used_regs[t].append(reg)
@@ -43,7 +49,7 @@ class Allocator:
         else:
             # Spill
             spilled_reg = self.used_regs[t][0]
-            memory_location = f"-{4 * (self.min_frame_size + len(self.spilled_regs.keys()) + 1)}($sp)"
+            memory_location = f"{4 * (self.min_frame_size + len(self.spilled_regs.keys()) + 1)}($fp)"
             self.spilled_regs[spilled_reg] = memory_location
             return spilled_reg, True
 
@@ -66,8 +72,10 @@ class Allocator:
             except ValueError:
                 count += len(scope.table.keys())
             scope = scope.parent
-        mem_addr = (ix + 1) * 4
-        return f"-{mem_addr}($sp)"
+        mem_addr = (ix + 2) * 4
+        # ix + 2 because 1) ix is zero indexed and we want to count from one and
+        #                2) because we pushed $ra at the begginning of the stack
+        return f"{mem_addr}($fp)"
 
 
 
@@ -463,6 +471,7 @@ class ASTIdentifierNode(ASTBaseNode):
 
 
 class ASTConstantNode(ASTBaseNode):
+    float_counter = 0
     def __init__(self, value, type_specifier, ctx=None):
         super(ASTConstantNode, self).__init__(ctx=ctx)
         self.__value = value
@@ -487,6 +496,14 @@ class ASTConstantNode(ASTBaseNode):
         else:
             return self.__value
 
+
+    def enter_mips_data(self):
+        if self.type() == "float":
+            float_label = f"fl{ASTConstantNode.float_counter}"
+            ASTConstantNode.float_counter += 1
+            self.value_register = float_label
+            return f"{float_label}: .float {self.value()}\n"
+        return ""
 
 class ASTStringLiteralNode(ASTBaseNode):
     def __init__(self, value, ctx=None):
@@ -860,6 +877,47 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         llvm_type = c2llvm_type(self.type())
         self.value_register = self.right().value_register  # We re-use the register from the rhs expression for this assignment expression
         return f"store {llvm_type} {self.right().value_register}, {llvm_type}* {indentifier_register}\n"
+
+    def exit_mips_text(self):
+        # Store variable in memory
+        float_type = self.type() == "float"
+        mips = ""
+
+        source_reg = self.right().value_register
+        store_op = "swc1" if float_type else "sw"
+        load_op = "lwc1" if float_type else "lw"
+        load_imm = "l.s" if float_type else "li"
+        allocated = False
+        if isinstance(self.right(), ASTConstantNode):
+            allocated = True
+            init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+            init_value = self.right().value_register if float_type else self.right().value()
+            if spilled:
+                mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
+            mips += f"{load_imm} {init_reg}, {init_value}\n"
+            source_reg = init_reg
+        
+        elif isinstance(self.right(), ASTIdentifierNode):
+            allocated = True
+            id_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+            if spilled:
+                mips += f"{store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
+            mips += f"{load_op} {id_reg}, {self.get_allocator().get_memory_address(self.right().identifier, self.scope)}\n"
+            source_reg = id_reg
+
+        mem_addr = self.get_allocator().get_memory_address(self.identifier().identifier, self.scope)
+        mips += f"{store_op} {source_reg}, {mem_addr}\n"
+
+        if allocated:
+            memory_location = self.get_allocator().deallocate_register(source_reg, float_type)
+            if memory_location:
+                mips += f"{load_op} {source_reg}, {memory_location}\n"
+
+        # Update Symbol Table
+        entry = self.scope.lookup(self.identifier().identifier)
+        entry.memory_location = mem_addr
+
+        return mips
 
     def populate_symbol_table(self):
         # If the rhs is a constant, assign the symbol table value
@@ -1375,19 +1433,38 @@ class ASTDeclarationNode(ASTBaseNode):
 
     def exit_mips_text(self):
         # Store variable in memory
-
-        float_type = False if self.type() != "float" else True
+        float_type = self.type() == "float"
         mips = ""
 
         source_reg = self.initializer().value_register
+        store_op = "swc1" if float_type else "sw"
+        load_op = "lwc1" if float_type else "lw"
+        load_imm = "l.s" if float_type else "li"
+        allocated = False
         if isinstance(self.initializer(), ASTConstantNode):
-            init_reg = self.get_allocator().allocate_next_register(float_type)
-            mips += f"li {init_reg}, {self.initializer().value()}\n"
+            allocated = True
+            init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+            init_value = self.initializer().value_register if float_type else self.initializer().value()
+            if spilled:
+                mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
+            mips += f"{load_imm} {init_reg}, {init_value}\n"
             source_reg = init_reg
-            self.get_allocator().deallocate_register(init_reg, float_type)
+        
+        elif isinstance(self.initializer(), ASTIdentifierNode):
+            allocated = True
+            id_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+            if spilled:
+                mips += f"{store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
+            mips += f"{load_op} {id_reg}, {self.get_allocator().get_memory_address(self.initializer().identifier, self.scope)}\n"
+            source_reg = id_reg
 
         mem_addr = self.get_allocator().get_memory_address(self.identifier().identifier, self.scope)
-        mips += f"sw {source_reg}, {mem_addr}\n"
+        mips += f"{store_op} {source_reg}, {mem_addr}\n"
+
+        if allocated:
+            memory_location = self.get_allocator().deallocate_register(source_reg, float_type)
+            if memory_location:
+                mips += f"{load_op} {source_reg}, {memory_location}\n"
 
         # Update Symbol Table
         entry = self.scope.lookup(self.identifier().identifier)
@@ -1915,8 +1992,22 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
         return "}\n"
 
     def enter_mips_text(self):
-        self.allocator.min_frame_size = self.scope.variable_count() * 4
-        return ""
+        self.allocator.min_frame_size = (1 + self.scope.variable_count()) * 4
+        mips = ""
+        mips += f"fun_{self.identifier().identifier}:\n"
+        mips += f"sw $fp, 0($sp)\n"
+        mips += f"move $fp, $sp\n"
+        mips += f"add $sp, $sp, 4\n"
+        mips += self.allocator.push_register_on_stack("$ra")
+        return mips
+
+    def exit_mips_text(self):
+        mips = ""
+        mips += "lw $ra, 4($fp)\n"
+        mips += "move $sp, $fp\n"
+        mips += "lw $fp, 0($fp)\n"
+        mips += "jr $ra\n"
+        return mips
 
     def returnType(self):
         return self.children[0]
