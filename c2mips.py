@@ -81,7 +81,7 @@ def generate_mips(ast, output):
     parent_stack = list()
     stack.append(ast)
     data = ".data\n"
-    text = ".text\n"
+    text = ".text\n\n"
     while stack:
         node = stack.pop()
 
