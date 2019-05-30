@@ -1627,18 +1627,15 @@ class ASTIfConditionNode(ASTBaseNode):
 
         cond_register = self.children[0].value_register
         mips = ""
-        allocated = False
         float_type = False
         load_op = "lw"
         if isinstance(self.children[0], ASTConstantNode):
             # Load constant into register (can be saved as int, bool value resolved by compiler)
-            allocated = True
             value = 1 if self.children[0].value != 0 else 0
             cond_register, spilled = self.get_allocator().allocate_next_register(float_type)
             mips += f"li {cond_register} {value}\n"
         elif isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory into register
-            allocated = True
             float_type = self.children[0].type() == "float"
             if float_type:
                 load_op = "lwc1"
@@ -1647,7 +1644,7 @@ class ASTIfConditionNode(ASTBaseNode):
             mips += f"{load_op} {cond_register}, {memory_address}\n"
 
         # Set labels
-        self.parent.cond_register = (allocated, cond_register, float_type) # Will be used to deallocate afterwards
+        self.parent.cond_register = (cond_register, float_type) # Will be used to deallocate afterwards
         self.parent.false_label = f"IfFalse{ASTIfStmtNode.if_counter}"
         self.parent.finish_label = f"IfEnd{ASTIfStmtNode.if_counter}"
 
@@ -1678,12 +1675,11 @@ class ASTIfTrueNode(ASTBaseNode):
     def enter_mips_text(self):
         mips = "\n" # readability
         # Deallocate condition register (alloc data: (allocated, cond_reg, float_type))
-        allocated, cond_reg, float_type = self.parent.cond_register
-        if allocated:
-            memory_address = self.get_allocator().deallocate(cond_reg, float_type)
-            if memory_address:
-                load_op = "lwc1" if float_type else "lw"
-                mips += f"{load_op} {cond_reg}, {memory_address}\n"
+        cond_reg, float_type = self.parent.cond_register
+        memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
+        if memory_address:
+            load_op = "lwc1" if float_type else "lw"
+            mips += f"{load_op} {cond_reg}, {memory_address}\n"
         return mips
 
     def exit_mips_text(self):
@@ -1712,12 +1708,11 @@ class ASTIfFalseNode(ASTBaseNode):
     def enter_mips_text(self):
         mips = ""
         # Deallocate condition register (alloc data: (allocated, cond_reg, float_type))
-        allocated, cond_reg, float_type = self.parent.cond_register
-        if allocated:
-            memory_address = self.get_allocator().deallocate(cond_reg, float_type)
-            if memory_address:
-                load_op = "lwc1" if float_type else "lw"
-                mips += f"{load_op} {cond_reg}, {memory_address}\n"
+        cond_reg, float_type = self.parent.cond_register
+        memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
+        if memory_address:
+            load_op = "lwc1" if float_type else "lw"
+            mips += f"{load_op} {cond_reg}, {memory_address}\n"
         return mips
 
     def exit_mips_text(self):
