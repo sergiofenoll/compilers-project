@@ -2006,6 +2006,36 @@ class ASTReturnNode(ASTBaseNode):
         llvmir += f"ret {function_return_type} {return_value}\n"
         return llvmir
 
+    def exit_mips_text(self):
+        # Set $v0 to return value
+        mips = ""
+        float_type = self.type() == "float"
+        move_op = "mfc1" if float_type else "move"
+        load_op = "lwc1" if float_type else "lw"
+        value_register = self.children[0].value_register
+        allocated = False
+        if isinstance(self.children[0], ASTConstantNode):
+            # Load constant into register
+            allocated = True
+            value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+            target_value = self.children[0].value() if not float_type else self.children[0].value_register
+            mips += f"li {value_register}, {target_value}\n"
+        if isinstance(self.children[0], ASTIdentifierNode):
+            # Load variable from memory into register
+            allocated = True
+            value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+            memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
+            mips += f"{load_op} {value_register}, {memory_address}\n"
+        
+        mips += f"{move_op} $v0, {value_register}\n"
+
+        if allocated:
+            memory_location = self.get_allocator().deallocate_register(value_register, float_type)
+            if memory_location:
+                mips += f"{load_op} {value_register}, {memory_location}\n"
+
+        return mips
+
     def optimise(self):
         # Check if child value known at compiletime
         if isinstance(self.children[0], ASTIdentifierNode):
