@@ -43,6 +43,21 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
   - Line comments `//`
   - Block comments `/* */`
     
+### MIPS:
+
+- Types: `char`, `float`, `int`
+- Reserved words: `if` `else`, `return`
+- Functions:
+  - Function definitions
+- Local and global variables
+- Operations:
+  - Arithmetic operators: `+`, `-`, `*`, `/`, `%`
+  - Logical operators: `&&`, `||`
+  - Assignment operators: `=`, `+=`, `-=`, `*=`, `/=`
+- Comments
+  - Line comments `//`
+  - Block comments `/* */`
+
 ### Error analysis:
 - Typechecking (warning/errors for unsupported operand types)
 
