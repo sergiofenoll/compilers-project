@@ -1,10 +1,10 @@
 int main() {
 
-    int a = 2;
+    float a = 2.0;
     int b = 0;
     
-    if (a < b) {
-        a -= 1;
+    while (a) {
+        a -= 1.0;
     }
     
     return 0;

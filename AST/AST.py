@@ -302,7 +302,7 @@ def generate_mips_float_comp(node, op):
         lhs, spilled = allocator.allocate_next_register(float=True)
         if spilled:
             mips += f"swc1 {lhs}, {allocator.spilled_regs[lhs]}\n"
-        mips += f"lwc1 {lhs}, {node.left().value_register}\n"
+        mips += f"l.s {lhs}, {node.left().value_register}\n"
 
     if isinstance(node.left(), ASTIdentifierNode):
         lhs_allocated = True
@@ -316,7 +316,7 @@ def generate_mips_float_comp(node, op):
         rhs, spilled = allocator.allocate_next_register(float=True)
         if spilled:
             mips += f"swc1 {rhs}, {allocator.spilled_regs[rhs]}\n"
-        mips += f"lwc1 {rhs}, {node.right().value_register}\n"
+        mips += f"l.s {rhs}, {node.right().value_register}\n"
 
     if isinstance(node.right(), ASTIdentifierNode):
         rhs_allocated = True
@@ -1713,6 +1713,7 @@ class ASTIfConditionNode(ASTBaseNode):
         mips = ""
         float_type = self.children[0].type() == "float"
         load_op = "lw"
+        flag_jump_on = "f"
         if isinstance(self.children[0], ASTBinaryExpressionNode):
             float_type = self.children[0].float_op()
 
@@ -1729,12 +1730,15 @@ class ASTIfConditionNode(ASTBaseNode):
             if float_type:
                 # Generate comparison to set flag
                 compare_node = ASTEqualsNode()
+                compare_node.parent = self
                 compare_node.scope = self.scope
                 zero_node = ASTConstantNode(0.0, "float")
                 zero_node.parent = compare_node
                 zero_node.scope = self.scope
+                zero_node.value_register = "zero_float"
                 compare_node.children = [self.children[0], zero_node]
-                mips += generate_mips_float_comp(zero_node, "c.eq.s")
+                mips += generate_mips_float_comp(compare_node, "c.eq.s")
+                flag_jump_on = "t"
             else:
                 memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
                 cond_register, spilled = self.get_allocator().allocate_next_register(float_type)
@@ -1750,7 +1754,7 @@ class ASTIfConditionNode(ASTBaseNode):
 
         # MIPS has falltrough: branch to false label if condition is 0
         if float_type:
-            mips += f"bc1f {self.parent.false_label}\n"
+            mips += f"bc1{flag_jump_on} {self.parent.false_label}\n"
         else:
             mips += f"beq {cond_register}, $0, {self.parent.false_label}\n"
         
@@ -1930,22 +1934,42 @@ class ASTWhileCondNode(ASTWhileStmtNode):
         load_op = "lwc1" if float_type else "lw"
         value_register = self.children[0].value_register
         allocated = False
+        flag_jump_on = "f"
         if isinstance(self.children[0], ASTConstantNode):
-            # Load evaluated condition into value register
+            # Load evaluated condition into value register (treat condition as int)
             allocated = True
+            float_type = False
             value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+            if spilled:
+                mips += f"sw {value_register}, {self.get_allocator().spilled_regs[value_register]}\n"
             self.parent.cond_register = (value_register, float_type)
             target_value = 1 if self.children[0].value() else 0
-            mips += f"lw {value_register}, {target_value}\n"
+            mips += f"li {value_register}, {target_value}\n"
         if isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory
-            allocated = True
-            value_register, spilled = self.get_allocator().allocate_next_register(float_type)
-            self.parent.cond_register = (value_register, float_type)
-            memory_location = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
-            mips += f"{load_op} {value_register}, {memory_location}\n"
+            if float_type:
+                # Generate comparison to set flag
+                compare_node = ASTEqualsNode()
+                compare_node.scope = self.scope
+                compare_node.parent = self
+                zero_node = ASTConstantNode(0.0, "float")
+                zero_node.parent = compare_node
+                zero_node.scope = self.scope
+                zero_node.value_register = "zero_float"
+                compare_node.children = [self.children[0], zero_node]
+                mips += generate_mips_float_comp(compare_node, "c.eq.s")
+                flag_jump_on = "t"
+            else:
+                allocated = True
+                value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+                self.parent.cond_register = (value_register, float_type)
+                memory_location = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
+                mips += f"{load_op} {value_register}, {memory_location}\n"
 
-        mips += f"beq {value_register}, $0, {self.parent.finish_label}\n\n"
+        if float_type:
+            mips += f"bc1{flag_jump_on} {self.parent.finish_label}\n\n"
+        else:
+            mips += f"beq {value_register}, $0, {self.parent.finish_label}\n\n"
         
         # Deallocate value register
         if allocated:
