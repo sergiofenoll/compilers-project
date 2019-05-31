@@ -1,17 +1,11 @@
-int f() {
-    return 1 + 1;
-}
-
 int main() {
 
-    int a = 5;
-    int b = 0;
+    float a = 2.0;
+    float b = 0.0;
     
     if (a && b) {
-        a *= b;
-    } else {
-        a += b;
+        a -= 1.0;
     }
     
-    return a;
+    return 0;
 }

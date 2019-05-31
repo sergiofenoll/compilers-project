@@ -831,6 +831,19 @@ class ASTBinaryExpressionNode(ASTExpressionNode):
     def type(self):
         return get_expression_type(self)
 
+    def float_op(self):
+        lhs = self.left().type() == "float"
+        rhs = self.right().type() == "float"
+
+        if isinstance(self.left(), ASTBinaryExpressionNode):
+            lhs = self.left().float_op()
+
+        if isinstance(self.right(), ASTBinaryExpressionNode):
+            rhs = self.right().float_op()
+
+        result = lhs or rhs
+        return result
+
     def result_type(self):
         """
             To be used in constant folding.
@@ -1136,10 +1149,6 @@ class ASTLogicalNode(ASTBinaryExpressionNode):
 
     def type(self):
         return "bool"
-
-    def float_op(self):
-        result = ("float" in self.left().type()) or ("float" in self.right().type())
-        return result
 
 
 class ASTSmallerThanNode(ASTLogicalNode):
@@ -1627,8 +1636,11 @@ class ASTIfConditionNode(ASTBaseNode):
 
         cond_register = self.children[0].value_register
         mips = ""
-        float_type = False
+        float_type = self.children[0].type() == "float"
         load_op = "lw"
+        if isinstance(self.children[0], ASTBinaryExpressionNode):
+            float_type = self.children[0].float_op()
+
         if isinstance(self.children[0], ASTConstantNode):
             # Load constant into register (can be saved as int, bool value resolved by compiler)
             value = 1 if self.children[0].value != 0 else 0
@@ -1636,7 +1648,6 @@ class ASTIfConditionNode(ASTBaseNode):
             mips += f"li {cond_register} {value}\n"
         elif isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory into register
-            float_type = self.children[0].type() == "float"
             if float_type:
                 load_op = "lwc1"
             memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
@@ -1674,7 +1685,7 @@ class ASTIfTrueNode(ASTBaseNode):
 
     def enter_mips_text(self):
         mips = "\n" # readability
-        # Deallocate condition register (alloc data: (allocated, cond_reg, float_type))
+        # Deallocate condition register (alloc data: (cond_reg, float_type))
         cond_reg, float_type = self.parent.cond_register
         memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
         if memory_address:
@@ -1727,11 +1738,15 @@ class ASTSwitchStmtNode(ASTBaseNode):
 
 
 class ASTWhileStmtNode(ASTBaseNode):
+
+    while_counter = 0
+
     def __init__(self, name="While", ctx=None):
         super(ASTWhileStmtNode, self).__init__(name, ctx=ctx)
         self.cond_label = None
         self.true_label = None
         self.finish_label = None
+        self.cond_register = None
 
     def optimise(self):
         # If condition is a constant, replace IfStmtNode by appropriate (conditional) subtree
@@ -1748,8 +1763,24 @@ class ASTWhileStmtNode(ASTBaseNode):
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
+    def enter_mips_text(self):
+        ASTWhileStmtNode.while_counter += 1
+        return ""
+
+    def exit_mips_text(self):
+        mips = ""
+        mips += f"\n{self.finish_label}:\n"
+        # Deallocate condition register
+        if self.cond_register:
+            memory_location = self.get_allocator().deallocate_register(self.cond_register[0], self.cond_register[1])
+            if memory_location:
+                load_op = "lwc1" if self.cond_register[1] else "lw"
+                mips += f"{load_op} {self.cond_register[0]}, {memory_location}\n\n"
+        return mips
+
 
 class ASTWhileCondNode(ASTWhileStmtNode):
+
     def __init__(self, ctx=None):
         super(ASTWhileCondNode, self).__init__("WhileCond", ctx=ctx)
 
@@ -1788,6 +1819,47 @@ class ASTWhileCondNode(ASTWhileStmtNode):
         llvmir += f"br i1 {cond_register}, label %{self.parent.true_label}, label %{self.parent.finish_label}\n"
         return llvmir
 
+    def enter_mips_text(self):
+        # Set labels
+        self.parent.cond_label = f"WhileCond{ASTWhileStmtNode.while_counter}"
+        self.parent.finish_label = f"WhileEnd{ASTWhileStmtNode.while_counter}"
+        mips = f"\n{self.parent.cond_label}:\n"
+        return mips
+
+    def exit_mips_text(self):
+        # Branch on condition
+
+        mips = ""
+        float_type = self.children[0].type() == "float"
+        if isinstance(self.children[0], ASTBinaryExpressionNode):
+            float_type = self.children[0].float_op()
+        load_op = "lwc1" if float_type else "lw"
+        value_register = self.children[0].value_register
+        allocated = False
+        if isinstance(self.children[0], ASTConstantNode):
+            # Load evaluated condition into value register
+            allocated = True
+            value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+            self.parent.cond_register = (value_register, float_type)
+            target_value = 1 if self.children[0].value() else 0
+            mips += f"lw {value_register}, {target_value}\n"
+        if isinstance(self.children[0], ASTIdentifierNode):
+            # Load variable from memory
+            allocated = True
+            value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+            self.parent.cond_register = (value_register, float_type)
+            memory_location = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
+            mips += f"{load_op} {value_register}, {memory_location}\n"
+
+        mips += f"beq {value_register}, $0, {self.parent.finish_label}\n\n"
+        
+        # Deallocate value register
+        if allocated:
+            memory_location = self.get_allocator().deallocate_register(value_register, float_type)
+            if memory_location:
+                mips += f"{load_op} {value_register}, {memory_location}\n"
+        return mips
+
 
 class ASTWhileTrueNode(ASTWhileStmtNode):
     def __init__(self, ctx=None):
@@ -1806,6 +1878,10 @@ class ASTWhileTrueNode(ASTWhileStmtNode):
 
         llvmir = f"br label %{self.parent.cond_label}\n"
         return llvmir
+
+    def exit_mips_text(self):
+        mips = f"j {self.parent.cond_label}\n"
+        return mips
 
 
 class ASTForStmtNode(ASTBaseNode):
