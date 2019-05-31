@@ -239,7 +239,7 @@ def generate_mips_expr(node, op):
         if source_reg is None:
             source_reg, spilled = allocator.allocate_next_register(float_type)
             if spilled:
-                mips += f"sw {source_reg}, {allocatpr.spilled_regs[source_reg]}\n"
+                mips += f"sw {source_reg}, {allocator.spilled_regs[source_reg]}\n"
             load_op = "lwc1" if float_type else "lw"
             memory_address = rhs.scope.lookup(rhs.identifier).memory_location
             mips += f"{load_op} {source_reg}, {memory_address}\n"
@@ -256,8 +256,11 @@ def generate_mips_expr(node, op):
             # Load rhs into register
             source_reg, spilled = allocator.allocate_next_register(float_type)
             if spilled:
-                mips += f"sw {source_reg}, {allocatpr.spilled_regs[source_reg]}\n"
-            mips += f"li {source_reg}, {rhs.value()}\n"
+                mips += f"sw {source_reg}, {allocator.spilled_regs[source_reg]}\n"
+            if not float_type:
+                mips += f"li {source_reg}, {rhs.value()}\n"
+            else:
+                mips += f"l.s {source_reg}, {rhs.value_register}\n"
         else:
             source_reg = rhs.value()
 
@@ -282,6 +285,60 @@ def generate_mips_expr(node, op):
             # Spilled register is free again, restore value
             mips += f"lw {source_reg}, {memory_location}\n"
     return mips
+
+def generate_mips_float_comp(node, op):
+    # Generate expression for LogicalNodes that are of float type
+    
+    mips = ""
+    allocator = node.get_allocator()
+    lhs = node.left().value_register
+    rhs = node.right().value_register
+    lhs_allocated = False
+    rhs_allocated = False
+
+    # Get rhs and lhs into registers
+    if isinstance(node.left(), ASTConstantNode):
+        lhs_allocated = True
+        lhs, spilled = allocator.allocate_next_register(float=True)
+        if spilled:
+            mips += f"swc1 {lhs}, {allocator.spilled_regs[lhs]}\n"
+        mips += f"lwc1 {lhs}, {node.left().value_register}\n"
+
+    if isinstance(node.left(), ASTIdentifierNode):
+        lhs_allocated = True
+        lhs, spilled = allocator.allocate_next_register(float=True)
+        if spilled:
+            mips += f"swc1 {lhs}, {allocator.spilled_regs[lhs]}\n"
+        mips += f"lwc1 {lhs}, {allocator.get_memory_address(node.left().identifier, node.scope)}\n"
+
+    if isinstance(node.right(), ASTConstantNode):
+        rhs_allocated = True
+        rhs, spilled = allocator.allocate_next_register(float=True)
+        if spilled:
+            mips += f"swc1 {rhs}, {allocator.spilled_regs[rhs]}\n"
+        mips += f"lwc1 {rhs}, {node.right().value_register}\n"
+
+    if isinstance(node.right(), ASTIdentifierNode):
+        rhs_allocated = True
+        rhs, spilled = allocator.allocate_next_register(float=True)
+        if spilled:
+            mips += f"swc1 {rhs}, {allocator.spilled_regs[rhs]}\n"
+        mips += f"lwc1 {rhs}, {allocator.get_memory_address(node.right().identifier, node.scope)}\n"
+
+    mips += f"{op} {lhs}, {rhs}\n"
+    
+    if lhs_allocated:
+        memory_location = allocator.deallocate_register(lhs, True)
+        if memory_location:
+            mips += f"lwc1 {lhs}, {memory_location}\n"
+    if rhs_allocated:
+        memory_location = allocator.deallocate_register(rhs, True)
+        if memory_location:
+            mips += f"lwc1 {rhs}, {memory_location}\n"
+
+    return mips
+
+    
 
 
 
@@ -1174,7 +1231,10 @@ class ASTSmallerThanNode(ASTLogicalNode):
         return generate_llvm_expr(self, "fcmp olt" if self.float_op() else "icmp slt")
 
     def exit_mips_text(self):
-        return generate_mips_expr(self, "slt")
+        if self.float_op():
+            return generate_mips_float_comp(self, "c.lt.s")
+        else:
+            return generate_mips_expr(self, "slt")
 
 
 class ASTLargerThanNode(ASTLogicalNode):
@@ -1200,7 +1260,10 @@ class ASTLargerThanNode(ASTLogicalNode):
         return generate_llvm_expr(self, "fcmp ogt" if self.float_op() else "icmp sgt")
 
     def exit_mips_text(self):
-        return generate_mips_expr(self, "sgt")
+        if self.float_op():
+            return generate_mips_float_comp(self, "c.gt.s")
+        else:
+            return generate_mips_expr(self, "sgt")
 
 
 class ASTSmallerThanOrEqualNode(ASTLogicalNode):
@@ -1226,7 +1289,10 @@ class ASTSmallerThanOrEqualNode(ASTLogicalNode):
         return generate_llvm_expr(self, "fcmp ole" if self.float_op() else "icmp sle")
 
     def exit_mips_text(self):
-        return generate_mips_expr(self, "sle")
+        if self.float_op():
+            return generate_mips_float_comp(self, "c.le.s")
+        else:
+            return generate_mips_expr(self, "sle")
 
 
 class ASTLargerThanOrEqualNode(ASTLogicalNode):
@@ -1252,7 +1318,10 @@ class ASTLargerThanOrEqualNode(ASTLogicalNode):
         return generate_llvm_expr(self, "fcmp oge" if self.float_op() else "icmp sge")
 
     def exit_mips_text(self):
-        return generate_mips_expr(self, "sge")
+        if self.float_op():
+            return generate_mips_float_comp(self, "c.ge.s")
+        else:
+            return generate_mips_expr(self, "sge")
 
 
 class ASTEqualsNode(ASTLogicalNode):
@@ -1278,7 +1347,10 @@ class ASTEqualsNode(ASTLogicalNode):
         return generate_llvm_expr(self, "fcmp oeq" if self.float_op() else "icmp eq")
 
     def exit_mips_text(self):
-        return generate_mips_expr(self, "seq")
+        if self.float_op():
+            return generate_mips_float_comp(self, "c.eq.s")
+        else:
+            return generate_mips_expr(self, "seq")
 
 
 class ASTNotEqualsNode(ASTLogicalNode):
@@ -1304,7 +1376,10 @@ class ASTNotEqualsNode(ASTLogicalNode):
         return generate_llvm_expr(self, "fcmp one" if self.float_op() else "icmp ne")
 
     def exit_mips_text(self):
-        return generate_mips_expr(self, "sne")
+        if self.float_op():
+            return generate_mips_float_comp(self, "c.ne.s")
+        else:
+            return generate_mips_expr(self, "sne")
 
 
 class ASTLogicalAndNode(ASTLogicalNode):
@@ -1643,24 +1718,41 @@ class ASTIfConditionNode(ASTBaseNode):
 
         if isinstance(self.children[0], ASTConstantNode):
             # Load constant into register (can be saved as int, bool value resolved by compiler)
+            float_type = False # This constant is always treated as an int
             value = 1 if self.children[0].value != 0 else 0
             cond_register, spilled = self.get_allocator().allocate_next_register(float_type)
+            if spilled:
+                mips += f"sw {cond_register}, {self.get_allocator().spilled_regs[cond_register]}\n"
             mips += f"li {cond_register} {value}\n"
         elif isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory into register
             if float_type:
-                load_op = "lwc1"
-            memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
-            cond_register, spilled = self.get_allocator().allocate_next_register(float_type)
-            mips += f"{load_op} {cond_register}, {memory_address}\n"
+                # Generate comparison to set flag
+                compare_node = ASTEqualsNode()
+                compare_node.scope = self.scope
+                zero_node = ASTConstantNode(0.0, "float")
+                zero_node.parent = compare_node
+                zero_node.scope = self.scope
+                compare_node.children = [self.children[0], zero_node]
+                mips += generate_mips_float_comp(zero_node, "c.eq.s")
+            else:
+                memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
+                cond_register, spilled = self.get_allocator().allocate_next_register(float_type)
+                if spilled:
+                    mips += f"sw {cond_register}, {self.get_allocator().spilled_regs[cond_register]}\n"
+                mips += f"lw {cond_register}, {memory_address}\n"
 
         # Set labels
-        self.parent.cond_register = (cond_register, float_type) # Will be used to deallocate afterwards
+        if float_type:
+            self.parent.cond_register = cond_register # Will be used to deallocate afterwards
         self.parent.false_label = f"IfFalse{ASTIfStmtNode.if_counter}"
         self.parent.finish_label = f"IfEnd{ASTIfStmtNode.if_counter}"
 
-        # MIPS has falltrough: branch to false label if condition is 0    
-        mips += f"beq {cond_register}, $0, {self.parent.false_label}\n"
+        # MIPS has falltrough: branch to false label if condition is 0
+        if float_type:
+            mips += f"bc1f {self.parent.false_label}\n"
+        else:
+            mips += f"beq {cond_register}, $0, {self.parent.false_label}\n"
         
         return mips
 
@@ -1686,11 +1778,12 @@ class ASTIfTrueNode(ASTBaseNode):
     def enter_mips_text(self):
         mips = "\n" # readability
         # Deallocate condition register (alloc data: (cond_reg, float_type))
-        cond_reg, float_type = self.parent.cond_register
-        memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
-        if memory_address:
-            load_op = "lwc1" if float_type else "lw"
-            mips += f"{load_op} {cond_reg}, {memory_address}\n"
+        cond_reg = self.parent.cond_register
+        if cond_reg:
+            memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
+            if memory_address:
+                load_op = "lwc1" if float_type else "lw"
+                mips += f"{load_op} {cond_reg}, {memory_address}\n"
         return mips
 
     def exit_mips_text(self):
@@ -1719,11 +1812,12 @@ class ASTIfFalseNode(ASTBaseNode):
     def enter_mips_text(self):
         mips = ""
         # Deallocate condition register (alloc data: (allocated, cond_reg, float_type))
-        cond_reg, float_type = self.parent.cond_register
-        memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
-        if memory_address:
-            load_op = "lwc1" if float_type else "lw"
-            mips += f"{load_op} {cond_reg}, {memory_address}\n"
+        cond_reg = self.parent.cond_register
+        if cond_reg:
+            memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
+            if memory_address:
+                load_op = "lwc1" if float_type else "lw"
+                mips += f"{load_op} {cond_reg}, {memory_address}\n"
         return mips
 
     def exit_mips_text(self):
