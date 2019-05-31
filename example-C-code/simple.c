@@ -1,11 +1,7 @@
 int main() {
-
-    float a = 2.0;
-    int b = 0;
     
-    while (a) {
-        a -= 1.0;
-    }
+    char c = 'c';
+    char a = 97;
     
     return 0;
 }

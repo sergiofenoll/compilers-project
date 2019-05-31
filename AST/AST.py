@@ -557,6 +557,9 @@ class ASTConstantNode(ASTBaseNode):
     def enter_mips_data(self):
         if self.type() == "float":
             float_label = f"fl{ASTConstantNode.float_counter}"
+            if self.value() == 0:
+                self.value_register = "zero_float"
+                return ""
             ASTConstantNode.float_counter += 1
             self.value_register = float_label
             return f"{float_label}: .float {self.value()}\n"
@@ -1528,9 +1531,9 @@ class ASTDeclarationNode(ASTBaseNode):
         if isinstance(self.initializer(), ASTConstantNode):
             allocated = True
             init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
-            init_value = self.initializer().value_register if float_type else self.initializer().value()
             if spilled:
                 mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
+            init_value = self.initializer().value_register if float_type else self.initializer().value()
             mips += f"{load_imm} {init_reg}, {init_value}\n"
             source_reg = init_reg
         
@@ -2213,7 +2216,8 @@ class ASTReturnNode(ASTBaseNode):
             allocated = True
             value_register, spilled = self.get_allocator().allocate_next_register(float_type)
             target_value = self.children[0].value() if not float_type else self.children[0].value_register
-            mips += f"li {value_register}, {target_value}\n"
+            load_op = "li" if not float_type else "l.s"
+            mips += f"{load_op} {value_register}, {target_value}\n"
         if isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory into register
             allocated = True
