@@ -1,8 +1,10 @@
-int main() {
-    int a[3] = {1, 2, 3};
-    a[0] = 3;
-    int b = a[0];
-    // int a = 5;
-    // a = 6;
+#include <stdio.h>
+
+void print_int(int a) {
+    printf("%d\n", a);
+}
+
+int main(int argc, char** argv) {
+    print_int(5);
     return 0;
 }

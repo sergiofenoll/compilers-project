@@ -1,5 +1,6 @@
 import logging
 import struct
+import re
 import AST.STT as STT
 
 
@@ -579,6 +580,7 @@ class ASTConstantNode(ASTBaseNode):
         return ""
 
 class ASTStringLiteralNode(ASTBaseNode):
+    string_counter = 0
     def __init__(self, value, ctx=None):
         super(ASTStringLiteralNode, self).__init__(ctx=ctx)
         self.__value = value
@@ -591,6 +593,9 @@ class ASTStringLiteralNode(ASTBaseNode):
 
     def value(self):
         return self.__value
+
+    def populate_symbol_table(self):
+        self.scope.lookup(self.parent.identifier().identifier).value = self.value()
 
     def enter_llvm_data(self):
         def clean_string(s):
@@ -632,6 +637,25 @@ class ASTStringLiteralNode(ASTBaseNode):
         global_scope_node.scope.temp_register += 1
 
         return f'{self.value_register} = private unnamed_addr constant {self.size} c"{cleaned_string}\\00"\n'
+
+    def enter_mips_data(self):
+        if isinstance(self.parent, ASTFunctionCallNode):
+            self.value_register = f"temp_str_{ASTStringLiteralNode.string_counter}"
+            ASTStringLiteralNode.string_counter += 1
+        else:
+            self.value_register = self.parent.identifier().identifier
+        
+        mips = ""
+        fstr = self.value().replace('"', '')
+        m = re.findall(r"([^%]+)|(%s)|(%d)|(%i)|(%c)|(%f)", fstr)
+        str_count = 0
+        for s in m:
+            if s[0] != '':
+                # Matched a string as opposed to a code
+                fstr_loc = f"{self.value_register}_str_part_{str_count}"
+                mips += f'{fstr_loc}: .asciiz "{s[0]}"\n'
+                str_count += 1
+        return mips
 
 
 class ASTExpressionNode(ASTBaseNode):
@@ -777,6 +801,146 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
         self.scope.temp_register = register
         return llvmir
 
+    def exit_mips_text(self):
+        def load_var_or_constant(node):
+            mips = ""
+            allocator = node.get_allocator()
+            float_type = node.type() == 'float'
+
+            store_op = "swc1" if float_type else "sw"
+            load_op = "lwc1" if float_type else "lw"
+            load_imm = "l.s" if float_type else "li"
+
+            reg, spilled = allocator.allocate_next_register(float_type)
+            if spilled:
+                mips += f"{store_op} {reg}, {allocator.spilled_regs[reg]}\n"
+
+            if isinstance(node, ASTConstantNode):
+                mips += f"{load_imm} {reg}, {node.value()}\n"
+            elif isinstance(node, ASTIdentifierNode):
+                mips += f"{load_op} {reg}, {allocator.get_memory_address(node.identifier, node.scope)}\n"
+            elif isinstance(node, ASTExpressionNode):
+                mips += f"{load_op} {reg}, {node.value_register}\n"
+
+            memory_location = allocator.deallocate_register(reg, float_type)
+            if memory_location:
+                mips += f"{load_op} {reg}, {memory_location}\n"
+            return mips, reg
+
+        mips = ""
+        allocator = self.get_allocator()
+        if self.identifier().identifier == "printf":
+            fstr_prefix = self.arguments()[0].value_register or self.scope.lookup(self.arguments()[0].identifier).register
+            
+            if isinstance(self.arguments()[0], ASTStringLiteralNode):
+                fstr = self.arguments()[0].value()
+            elif isinstance(self.arguments()[0], ASTIdentifierNode):
+                fstr = self.scope.lookup(self.arguments()[0].identifier).value
+            if not fstr:
+                # We're printing a string on the stack
+                # Special case so early return
+                mips += f"la $a0, {allocator.get_memory_address(self.arguments()[0].identifier, self.scope)}\n"
+                mips += "li $v0, 4\n"
+                mips += "syscall\n"
+                return mips
+            fstr = fstr.replace('"', '')
+            m = re.findall(r"([^%]+)|(%s)|(%d)|(%i)|(%c)|(%f)", fstr)
+
+            str_count = 0
+            arg_count = 1
+            for s in m:
+                if s[0] != '' or s[1] != '':
+                    # Matched a string as opposed to a code
+                    fstr_loc = f"{fstr_prefix}_str_part_{str_count}"
+                    mips += f"la $a0, {fstr_loc}\n"
+                    mips += "li $v0, 4\n"
+                    mips += "syscall\n"
+                    str_count += 1
+                    if s[1] == '':
+                        continue
+                elif s[2] != '' or s[3] != '':
+                    # Matched an integer code
+                    mips_load_arg, reg = load_var_or_constant(self.arguments()[arg_count])
+                    mips += mips_load_arg
+                    mips += f"move $a0, {reg}\n"
+                    mips += "li $v0, 1\n"
+                    mips += "syscall\n"
+                elif s[4] != '':
+                    # Matched a character code
+                    mips_load_arg, reg = load_var_or_constant(self.arguments()[arg_count])
+                    mips += mips_load_arg
+                    mips += f"move $a0, {reg}\n"
+                    mips += "li $v0, 11\n"
+                    mips += "syscall\n"
+                elif s[5] != '':
+                    # Matched a float code
+                    mips_load_arg, reg = load_var_or_constant(self.arguments()[arg_count])
+                    mips += mips_load_arg
+                    mips += f"mov.s $f12, {reg}\n"
+                    mips += "li $v0, 2\n"
+                    mips += "syscall\n"
+                arg_count += 1
+        elif self.identifier().identifier == "scanf":
+            fstr_prefix = self.arguments()[0].value_register or self.scope.lookup(self.arguments()[0].identifier).register
+            fstr = self.arguments()[0].value()
+            
+            if not fstr:
+                fstr = self.scope.lookup(self.arguments()[0].identifier).value
+            fstr = fstr.replace('"', '')
+            m = re.findall(r"(%s)|(%d)|(%i)|(%c)|(%f)", fstr)
+            
+            arg_count = 1
+            for s in m:
+                arg = self.arguments()[arg_count]
+                if isinstance(arg, ASTAddressOfNode):
+                    arg_id = arg.identifier().identifier
+                else:
+                    arg_id = arg.identifier
+                if s[0] != '':
+                    # Matched a string as opposed to a code
+                    mem_loc = allocator.get_memory_address(arg_id, self.scope)
+                    mem_len = self.scope.lookup(arg.identifier).size
+                    mips += f"la $a0, {mem_loc}\n"
+                    mips += f"li $a1, {mem_len}\n"
+                    mips += "li $v0, 8\n"
+                    mips += "syscall\n"
+                    continue
+                elif s[1] != '' or s[2] != '':
+                    # Matched an integer code
+                    mem_loc = allocator.get_memory_address(arg_id, self.scope)
+                    mips += "li $v0, 5\n"
+                    mips += "syscall\n"
+                    mips += f"sw $v0, {mem_loc}\n"
+                elif s[3] != '':
+                    # Matched a character code
+                    mem_loc = allocator.get_memory_address(arg_id, self.scope)
+                    mips += "li $v0, 12\n"
+                    mips += "syscall\n"
+                    mips += f"sw $v0, {mem_loc}\n"
+                elif s[4] != '':
+                    # Matched a float code
+                    mem_loc = allocator.get_memory_address(arg_id, self.scope)
+                    mips += "li $v0, 6\n"
+                    mips += "syscall\n"
+                    mips += f"swc1 $f0, {mem_loc}\n"
+                arg_count += 1
+        else:
+            for i, arg in enumerate(self.arguments()):
+                mips_load_arg, reg = load_var_or_constant(arg)
+                mips += mips_load_arg
+
+                float_type = arg.type() == 'float'
+
+                store_op = "swc1" if float_type else "sw"
+                move_op = "mov.s" if float_type else "move"
+                if i < 4:
+                    arg_reg = f"${'f' if float_type else 'a'}{i + 12 if float_type else i}"
+                    mips += f"{move_op} {arg_reg}, {reg}\n"
+                else:
+                    mips += f"{store_op} {reg}, ($sp)\n"
+                    mips += f"add $sp, $sp, 4\n"
+            mips += f"jal fun_{self.identifier().identifier}\n"
+        return mips
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
     def __init__(self, ctx=None):
@@ -926,6 +1090,9 @@ class ASTAddressOfNode(ASTUnaryExpressionNode):
         return llvm_ir
 
     def exit_mips_text(self):
+        if isinstance(self.parent, ASTFunctionCallNode) and self.parent.identifier().identifier == "scanf":
+            return ""
+
         mips = ""
 
         float_type = self.type() == "float"
@@ -1154,7 +1321,7 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
             self = None
 
     def exit_llvm_text(self):
-        return generate_llvm_expr(self, "fmul" if self.type() == "float" else "mul")
+        return generate_llvm_expr(self, "fmul" if self.type() == "float" else "        mul")
 
     def exit_mips_text(self):
         return generate_mips_expr(self, "mul.s" if self.type() == "float" else "mul")
@@ -1626,6 +1793,10 @@ class ASTDeclarationNode(ASTBaseNode):
 
     def exit_mips_text(self):
         if not self.scope.depth:
+            return ""
+
+        if self.type() == "char*":
+            self.scope.lookup(self.identifier().identifier).register = self.initializer().value_register
             return ""
 
         mips = ""
@@ -2438,7 +2609,20 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
         mips += f"add $sp, $sp, 4\n"
         mips += f"sw $ra, 0($sp)\n"
         mips += f"add $sp, $sp, {self.allocator.min_frame_size}\n"
-        # mips += self.allocator.push_register_on_stack("$ra")
+
+        # Prepare arguments
+        args = self.arguments()[1::2]
+        for i, arg in enumerate(args):
+            float_type = arg.type() == 'float'
+            store_op = "swc1" if float_type else "sw"
+            load_op = "lwc1" if float_type else "lw"
+            arg_reg = '$f12' if float_type else '$a0'
+            if i < 4:
+                arg_reg = f"${'f' if float_type else 'a'}{i + 12 if float_type else i}"
+            else:
+                mips += f"{load_op} {arg_reg}, -{(len(args) - i) * 4}($fp)\n"
+            mips += f"{store_op} {arg_reg}, {self.allocator.get_memory_address(arg.identifier, self.scope)}\n"
+
         mips += "\n" #readability
         return mips
 

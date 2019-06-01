@@ -82,7 +82,7 @@ def generate_mips(ast, output):
     stack.append(ast)
     data = ".data\n"
     data += "zero_float: .float 0.0\n" # Can be used anywhere a 0.0 is needed
-    text = ".text\n\n"
+    text = ".text\nj fun_main\n"
     while stack:
         node = stack.pop()
 
