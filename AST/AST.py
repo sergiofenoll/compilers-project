@@ -64,17 +64,20 @@ class Allocator:
             self.used_regs[t].remove(reg)
             return None
 
-    def get_memory_address(self, identifier, scope):
+    def get_memory_address(self, identifier, scope, idx=0):
         count = 0
         while scope.parent is not None:
-            try:
-                ix = count + list(scope.table.keys()).index(identifier)
-            except ValueError:
-                count += len(scope.table.keys())
+            for var in scope.table.values():
+                if var.identifier == identifier:
+                    if "[]" in var.type_desc:
+                        count += 1 + idx # idx is zero-indexed, add one to account for the fact that array _is_ one further
+                    else:
+                        count += var.size
+                    break
+                count += var.size
             scope = scope.parent
-        mem_addr = (ix + 2) * 4
-        # ix + 2 because 1) ix is zero indexed and we want to count from one and
-        #                2) because we pushed $ra at the begginning of the stack
+        mem_addr = (count + 1) * 4
+        # count + 1 because because we pushed $ra at the begginning of the stack
         return f"{mem_addr}($fp)"
 
 
@@ -237,7 +240,7 @@ def generate_mips_expr(node, op):
             float_type = True
 
     # Get proper registers
-    if isinstance(lhs, ASTIdentifierNode) or isinstance(lhs, ASTBinaryExpressionNode):
+    if isinstance(lhs, ASTIdentifierNode) or isinstance(lhs, ASTBinaryExpressionNode) or isinstance(rhs, ASTArrayAccessNode):
         target_reg = lhs.value_register
         if target_reg is None:
             target_reg, spilled = allocator.allocate_next_register(float_type)
@@ -246,7 +249,7 @@ def generate_mips_expr(node, op):
             load_op = "lwc1" if float_type else "lw"
             memory_address = lhs.scope.lookup(lhs.identifier).memory_location
             mips += f"{load_op} {target_reg}, {memory_address}\n"
-    if isinstance(rhs, ASTIdentifierNode) or isinstance(rhs, ASTBinaryExpressionNode):
+    if isinstance(rhs, ASTIdentifierNode) or isinstance(rhs, ASTBinaryExpressionNode) or isinstance(rhs, ASTArrayAccessNode):
         source_reg = rhs.value_register
         if source_reg is None:
             source_reg, spilled = allocator.allocate_next_register(float_type)
@@ -682,6 +685,51 @@ class ASTArrayAccessNode(ASTUnaryExpressionNode):
         llvm_ir += f"{self.value_register} = load {array_member_type}, {array_member_type}* %{temp_reg}\n"
         return llvm_ir
 
+    def enter_mips_text(self):
+        mips = ""
+        allocator = self.get_allocator()
+        float_type = self.type() == "float"
+
+        store_op = "swc1" if float_type else "sw"
+        load_op = "lwc1" if float_type else "lw"
+        load_imm = "l.s" if float_type else "li"
+
+        reg, spilled = allocator.allocate_next_register(float_type)
+        if spilled:
+            mips += f"{store_op} {reg}, {allocator.spilled_regs[reg]}\n"
+        mem_addr = allocator.get_memory_address(self.identifier().identifier, self.scope)
+        mips += f"la {reg}, {mem_addr}\n"
+
+        if isinstance(self.indexer(), ASTIdentifierNode) or isinstance(self.indexer(), ASTBinaryExpressionNode):
+            indexer_reg = self.indexer().value_register
+            if indexer_reg is None:
+                indexer_reg, spilled = allocator.allocate_next_register(float_type)
+                if spilled:
+                    mips += f"sw {indexer_reg}, {allocator.spilled_regs[indexer_reg]}\n"
+                memory_address = self.scope.lookup(self.indexer().identifier).memory_location
+                mips += f"{load_op} {indexer_reg}, {memory_address}\n"
+        else:
+            indexer_reg, spilled = allocator.allocate_next_register(float_type)
+            if spilled:
+                mips += f"sw {indexer_reg}, {allocator.spilled_regs[indexer_reg]}\n"
+            mips += f"{load_imm} {indexer_reg}, {self.indexer().value()}\n"
+
+        mips += f"mul {indexer_reg}, {indexer_reg}, 4\n"
+        mips += f"add {reg}, {reg}, {indexer_reg}\n"
+        memory_location = allocator.deallocate_register(indexer_reg)
+        if memory_location:
+            mips += f"{load_op} {indexer_reg}, {memory_location}\n"
+        self.value_register = reg
+        return mips
+
+    def exit_mips_text(self):
+        float_type = self.type() == "float"
+        load_op = "lwc1" if float_type else "lw"
+        if isinstance(self.parent, ASTAssignmentNode):
+            if self != self.parent.left():
+                mips = f"{load_op} {self.value_register}, ({self.value_register})\n"
+        return ""
+
 
 class ASTFunctionCallNode(ASTUnaryExpressionNode):
     def __init__(self, ctx=None):
@@ -971,7 +1019,10 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         return self.left().type()
 
     def identifier(self):
-        return self.left()
+        try:
+            return self.left().identifier()
+        except:
+            return self.left()
 
     def value(self):
         return self.right().value()
@@ -1014,7 +1065,6 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
                 mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
             mips += f"{load_imm} {init_reg}, {init_value}\n"
             source_reg = init_reg
-        
         elif isinstance(self.right(), ASTIdentifierNode):
             allocated = True
             id_reg, spilled = self.get_allocator().allocate_next_register(float_type)
@@ -1024,7 +1074,13 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
             source_reg = id_reg
 
         mem_addr = self.get_allocator().get_memory_address(self.identifier().identifier, self.scope)
-        mips += f"{store_op} {source_reg}, {mem_addr}\n"
+        if isinstance(self.left(), ASTArrayAccessNode):
+            mips += f"{store_op} {source_reg}, ({self.left().value_register})\n"
+            mem_loc = self.get_allocator().deallocate_register(self.left().value_register, float_type)
+            if mem_loc:
+                mips += f"{load_op} {self.left().value_register}, {mem_loc}\n"
+        else:
+            mips += f"{store_op} {source_reg}, {mem_addr}\n"
 
         if allocated:
             memory_location = self.get_allocator().deallocate_register(source_reg, float_type)
@@ -1034,7 +1090,6 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         # Update Symbol Table
         entry = self.scope.lookup(self.identifier().identifier)
         entry.memory_location = mem_addr
-
         return mips
 
     def populate_symbol_table(self):
@@ -1574,44 +1629,68 @@ class ASTDeclarationNode(ASTBaseNode):
             return ""
 
         mips = ""
+        allocator = self.get_allocator()
         float_type = self.type() == "float"
 
         store_op = "swc1" if float_type else "sw"
         load_op = "lwc1" if float_type else "lw"
         load_imm = "l.s" if float_type else "li"
-
         mem_addr = self.get_allocator().get_memory_address(self.identifier().identifier, self.scope)
-        if self.initializer():
-            # This variable is initialized
-            # Store variable in memory
-            source_reg = self.initializer().value_register
-            allocated = False
-            if isinstance(self.initializer(), ASTConstantNode):
-                allocated = True
-                init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
-                init_value = self.initializer().value_register if float_type else self.initializer().value()
-                if spilled:
-                    mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
-                mips += f"{load_imm} {init_reg}, {init_value}\n"
-                source_reg = init_reg
-            
-            elif isinstance(self.initializer(), ASTIdentifierNode):
-                allocated = True
-                id_reg, spilled = self.get_allocator().allocate_next_register(float_type)
-                if spilled:
-                    mips += f"{store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
-                mips += f"{load_op} {id_reg}, {self.get_allocator().get_memory_address(self.initializer().identifier, self.scope)}\n"
-                source_reg = id_reg
-            elif isinstance(self.initializer(), ASTExpressionNode):
-                allocated = True
 
-            mips += f"{store_op} {source_reg}, {mem_addr}\n"
-
-            if allocated:
-                memory_location = self.get_allocator().deallocate_register(source_reg, float_type)
+        if isinstance(self.children[1], ASTArrayDeclarationNode):
+            array_len = self.scope.lookup(self.identifier().identifier).size
+            for idx, init in enumerate(self.children[2:]):
+                if idx >= array_len:
+                    break
+                # initialize array
+                reg, spilled = allocator.allocate_next_register(float_type)
+                if spilled:
+                    mips += f"{store_op} {reg}, {allocator.spilled_regs[reg]}\n"
+                mips += f"{load_imm} {reg}, {init.value()}\n"
+                mips += f"{store_op} {reg}, {allocator.get_memory_address(self.identifier().identifier, self.scope, idx)}\n"
+                memory_location = allocator.deallocate_register(reg, float_type)
                 if memory_location:
-                    mips += f"{load_op} {source_reg}, {memory_location}\n"
-                        
+                    mips += f"{load_op} {reg}, {memory_location}\n"
+        else:
+            if self.initializer():
+                # This variable is initialized
+                # Store variable in memory
+                source_reg = self.initializer().value_register
+                allocated = False
+                if isinstance(self.initializer(), ASTConstantNode):
+                    allocated = True
+                    init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+                    init_value = self.initializer().value_register if float_type else self.initializer().value()
+                    if spilled:
+                        mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
+                    mips += f"{load_imm} {init_reg}, {init_value}\n"
+                    source_reg = init_reg
+
+                elif isinstance(self.initializer(), ASTIdentifierNode):
+                    allocated = True
+                    id_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+                    if spilled:
+                        mips += f"{store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
+                    mips += f"{load_op} {id_reg}, {self.get_allocator().get_memory_address(self.initializer().identifier, self.scope)}\n"
+                    source_reg = id_reg
+                elif isinstance(self.initializer(), ASTArrayAccessNode):
+                    allocated = True
+                    source_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+                    if spilled:
+                        mips += f"{store_op} {source_reg}, {self.get_allocator().spilled_regs[source_reg]}\n"
+                    mips += f"{load_op} {source_reg}, ({self.initializer().value_register})\n"
+                    mem_loc = self.get_allocator().deallocate_register(self.initializer().value_register, float_type)
+                    if mem_loc:
+                        mips += f"{load_op} {self.initializer().value_register}, {mem_loc}\n"
+                elif isinstance(self.initializer(), ASTExpressionNode):
+                    allocated = True
+
+                mips += f"{store_op} {source_reg}, {mem_addr}\n"
+
+                if allocated:
+                    memory_location = self.get_allocator().deallocate_register(source_reg, float_type)
+                    if memory_location:
+                        mips += f"{load_op} {source_reg}, {memory_location}\n"
 
         # Update Symbol Table
         entry = self.scope.lookup(self.identifier().identifier)
@@ -2364,7 +2443,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
         return mips
 
     def exit_mips_text(self):
-        mips = ""
+        mips = "\n"
         if not self.identifier().identifier == "main":
             mips += "lw $ra, 4($fp)\n"
             mips += "move $sp, $fp\n"
@@ -2461,6 +2540,7 @@ class ASTArrayDeclarationNode(ASTBaseNode):
     def populate_symbol_table(self):
         scope = self.scope.scope_level(self.identifier().identifier)
         self.value_register = f"%{self.identifier().identifier}.scope{scope}" if scope else f"@{self.identifier().identifier}"
+        self.scope.lookup(self.identifier().identifier).size = self.children[1].value()
 
     def identifier(self):
         if isinstance(self.children[0], ASTArrayDeclarationNode):

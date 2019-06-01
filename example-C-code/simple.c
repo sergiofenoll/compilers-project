@@ -1,11 +1,8 @@
 int main() {
-
-    float a = 2.0;
-    int b = 0;
-    
-    while (a) {
-        a -= 1.0;
-    }
-    
+    int a[3] = {1, 2, 3};
+    a[0] = 3;
+    int b = a[0];
+    // int a = 5;
+    // a = 6;
     return 0;
 }
