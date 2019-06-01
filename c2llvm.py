@@ -12,7 +12,6 @@ logging.basicConfig(format='[%(levelname)s] %(message)s')
 
 
 def optimise_ast(ast):
-
     # Applies the following optimisations where possible:
     #   - Remove code that comes after return, break or continue
     #   - Remove declarations for unused variables

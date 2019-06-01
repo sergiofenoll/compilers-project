@@ -2,11 +2,8 @@ int main() {
     
     int a = 5;
     
-    while (a > 0) {
-        a -= 1;
-        if (a == 2) {
-            continue;
-        }
+    for (int i = 0; i < a; i += 1) {
+        int b = 1;
     }
     
     return 0;

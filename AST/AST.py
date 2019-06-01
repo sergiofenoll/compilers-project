@@ -480,6 +480,13 @@ class ASTIdentifierNode(ASTBaseNode):
             if isinstance(self.parent, ASTAssignmentNode) and self.parent.left() == self:
                 return
 
+            # Don't propagate in loop conditions
+            loop_parent = self.parent
+            while loop_parent:
+                if isinstance(loop_parent, ASTForStmtNode) or isinstance(loop_parent, ASTWhileStmtNode):
+                    return
+                loop_parent = loop_parent.parent
+
             if isinstance(self.parent, ASTBinaryExpressionNode) or isinstance(self.parent, ASTLogicalNode) \
                or isinstance(self.parent, ASTReturnNode):
                 # Replace with constant node
@@ -1010,7 +1017,14 @@ class ASTMultiplicationNode(ASTBinaryExpressionNode):
             return self.left().value() * self.right().value()
 
     def optimise(self):
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         rhs = self.right().value() if isinstance(self.right(), ASTConstantNode) else None
         lhs = self.left().value() if isinstance(self.left(), ASTConstantNode) else None
@@ -1066,7 +1080,14 @@ class ASTDivisionNode(ASTBinaryExpressionNode):
         self.name = "/"
 
     def optimise(self):
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         value = self.right().value()
         if value and int(value) == 1:
@@ -1105,7 +1126,14 @@ class ASTModuloNode(ASTBinaryExpressionNode):
         self.name = "%"
 
     def optimise(self):
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         value = self.right().value()
         if value and int(value) == 1:
@@ -1150,7 +1178,14 @@ class ASTAdditionNode(ASTBinaryExpressionNode):
         self.name = "+"
 
     def optimise(self):
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
@@ -1179,7 +1214,14 @@ class ASTSubtractionNode(ASTBinaryExpressionNode):
         self.name = "-"
 
     def optimise(self):
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.right(), ASTConstantNode) and isinstance(self.left(), ASTConstantNode):
             # Evaluate in compiler
@@ -1218,7 +1260,15 @@ class ASTSmallerThanNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        # Exception: Loop conditions
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() < self.right().value())
@@ -1247,7 +1297,14 @@ class ASTLargerThanNode(ASTLogicalNode):
     
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() > self.right().value())
@@ -1276,7 +1333,14 @@ class ASTSmallerThanOrEqualNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() <= self.right().value())
@@ -1305,7 +1369,14 @@ class ASTLargerThanOrEqualNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() >= self.right().value())
@@ -1334,7 +1405,14 @@ class ASTEqualsNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() == self.right().value())
@@ -1363,7 +1441,14 @@ class ASTNotEqualsNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() != self.right().value())
@@ -1392,7 +1477,14 @@ class ASTLogicalAndNode(ASTLogicalNode):
 
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() and self.right().value())
@@ -1419,7 +1511,14 @@ class ASTLogicalOrNode(ASTLogicalNode):
         
     def optimise(self):
         # If both children are constants, evaluate expression in compiler
-        self.propagate_constants()
+        loop_parent = self.parent
+        while loop_parent:
+            if isinstance(loop_parent, ASTForCondNode) or isinstance(loop_parent, ASTWhileCondNode) \
+                or isinstance(loop_parent, ASTForUpdaterNode):
+                break
+            loop_parent = loop_parent.parent
+        if not loop_parent:
+            self.propagate_constants()
 
         if isinstance(self.left(), ASTConstantNode) and isinstance(self.right(), ASTConstantNode):
             value = int(self.left().value() or self.right().value())
@@ -1784,13 +1883,12 @@ class ASTIfTrueNode(ASTBaseNode):
 
     def enter_mips_text(self):
         mips = "\n" # readability
-        # Deallocate condition register (alloc data: (cond_reg, float_type))
+        # Deallocate condition register (if it exists, the condition wasn't float)
         cond_reg = self.parent.cond_register
         if cond_reg:
-            memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
+            memory_address = self.get_allocator().deallocate_register(cond_reg, False)
             if memory_address:
-                load_op = "lwc1" if float_type else "lw"
-                mips += f"{load_op} {cond_reg}, {memory_address}\n"
+                mips += f"lw {cond_reg}, {memory_address}\n"
         return mips
 
     def exit_mips_text(self):
@@ -1818,13 +1916,12 @@ class ASTIfFalseNode(ASTBaseNode):
 
     def enter_mips_text(self):
         mips = ""
-        # Deallocate condition register (alloc data: (allocated, cond_reg, float_type))
+        # Deallocate condition register
         cond_reg = self.parent.cond_register
         if cond_reg:
-            memory_address = self.get_allocator().deallocate_register(cond_reg, float_type)
+            memory_address = self.get_allocator().deallocate_register(cond_reg, False)
             if memory_address:
-                load_op = "lwc1" if float_type else "lw"
-                mips += f"{load_op} {cond_reg}, {memory_address}\n"
+                mips += f"lw {cond_reg}, {memory_address}\n"
         return mips
 
     def exit_mips_text(self):
@@ -1850,11 +1947,10 @@ class ASTWhileStmtNode(ASTBaseNode):
         self.cond_register = None
 
     def optimise(self):
-        # If condition is a constant, replace IfStmtNode by appropriate (conditional) subtree
+        # If condition is a constant and false, delete this node
         cond_node = self.children[0]
         if len(cond_node.children) == 1 and isinstance(cond_node.children[0], ASTConstantNode):
             if cond_node.children[0].value() == 0:
-                # Delete this node
                 self.parent.children.pop(self.parent.children.index(self))
 
     def exit_llvm_text(self):
@@ -1884,9 +1980,6 @@ class ASTWhileCondNode(ASTWhileStmtNode):
 
     def __init__(self, ctx=None):
         super(ASTWhileCondNode, self).__init__("WhileCond", ctx=ctx)
-
-    def optimise(self):
-        self.propagate_constants()
 
     def enter_llvm_text(self):
         # Set body scope counter to outer scope counter
@@ -1939,15 +2032,11 @@ class ASTWhileCondNode(ASTWhileStmtNode):
         allocated = False
         flag_jump_on = "f"
         if isinstance(self.children[0], ASTConstantNode):
-            # Load evaluated condition into value register (treat condition as int)
-            allocated = True
-            float_type = False
-            value_register, spilled = self.get_allocator().allocate_next_register(float_type)
-            if spilled:
-                mips += f"sw {value_register}, {self.get_allocator().spilled_regs[value_register]}\n"
-            self.parent.cond_register = (value_register, float_type)
-            target_value = 1 if self.children[0].value() else 0
-            mips += f"li {value_register}, {target_value}\n"
+            # Jump if condition is 0, else fall through
+            value = self.children[0].value
+            if value == 0:
+                return f"j {self.parent.finish_label}\n"
+            return ""
         if isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory
             if float_type:
@@ -1965,6 +2054,8 @@ class ASTWhileCondNode(ASTWhileStmtNode):
             else:
                 allocated = True
                 value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+                if spilled:
+                    mips += f"sw {value_register}, {self.get_allocator().spilled_regs[value_register]}\n"
                 self.parent.cond_register = (value_register, float_type)
                 memory_location = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
                 mips += f"{load_op} {value_register}, {memory_location}\n"
@@ -2006,8 +2097,12 @@ class ASTWhileTrueNode(ASTWhileStmtNode):
 
 
 class ASTForStmtNode(ASTBaseNode):
+
+    for_counter = 0
+
     def __init__(self, name="For", ctx=None):
         super(ASTForStmtNode, self).__init__(name, ctx=ctx)
+        self.cond_register = None
         self.cond_label = None
         self.updater_label = None
         self.true_label = None
@@ -2022,6 +2117,20 @@ class ASTForStmtNode(ASTBaseNode):
         llvmir = f"\n{self.finish_label}:\n"
         return llvmir
 
+    def enter_mips_text(self):
+        ASTForStmtNode.for_counter += 1
+        return ""
+
+    def exit_mips_text(self):
+        mips = f"\n{self.finish_label}:\n"
+        if self.cond_register:
+            # Deallocate if necessary, can only be int
+            memory_location = self.get_allocator().deallocate_register(self.cond_register)
+            if memory_location:
+                mips += f"lw {self.cond_register}, {memory_location}\n"
+
+        return mips
+
 
 class ASTForInitNode(ASTForStmtNode):
     def __init__(self, ctx=None):
@@ -2034,6 +2143,13 @@ class ASTForInitNode(ASTForStmtNode):
     
     def exit_llvm_text(self):
         # Override parent method because this returns nothing
+        return ""
+
+    def enter_mips_text(self):
+        mips = "\n"
+        return mips
+    
+    def exit_mips_text(self):
         return ""
 
 
@@ -2069,6 +2185,64 @@ class ASTForCondNode(ASTForStmtNode):
         llvmir += f"br i1 {cond_register}, label %{self.parent.true_label}, label %{self.parent.finish_label}\n"
         return llvmir
 
+    def enter_mips_text(self):
+        self.parent.cond_label = f"ForCond{ASTForStmtNode.for_counter}"
+        self.parent.finish_label = f"ForEnd{ASTForStmtNode.for_counter}"
+        mips = f"{self.parent.cond_label}:\n"
+        return mips
+
+    def exit_mips_text(self):
+        # Evaluate condition and branch if false
+        mips = ""
+        value_register = self.children[0].value_register
+        float_type = self.children[0].type() == "float"
+        if isinstance(self.children[0], ASTBinaryExpressionNode):
+            float_type = self.children[0].float_op()
+        flag_jump_on = "f"
+        allocated = False
+
+
+        if isinstance(self.children[0], ASTConstantNode):
+            # This shouldn't technically be possible
+            # Jump if 0, else fallthrough
+            value = self.children[0].value
+            if value == 0:
+                return f"j {self.parent.finish_label}\n"
+        if isinstance(self.children[0], ASTIdentifierNode):
+            # Load variable from memory
+            if float_type:
+                # Generate comparison to set flag
+                compare_node = ASTEqualsNode()
+                compare_node.scope = self.scope
+                compare_node.parent = self
+                zero_node = ASTConstantNode(0.0, "float")
+                zero_node.parent = compare_node
+                zero_node.scope = self.scope
+                zero_node.value_register = "zero_float"
+                compare_node.children = [self.children[0], zero_node]
+                mips += generate_mips_float_comp(compare_node, "c.eq.s")
+                flag_jump_on = "t"
+            else:
+                allocated = True
+                value_register, spilled = self.get_allocator().allocate_next_register(float_type)
+                if spilled:
+                    mips += f"sw {value_register}, {self.get_allocator().spilled_regs[value_register]}\n"
+                self.parent.cond_register = value_register
+                memory_location = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
+                mips += f"lw {value_register}, {memory_location}\n"
+
+        if float_type:
+            mips += f"bc1{flag_jump_on} {self.parent.finish_label}\n\n"
+        else:
+            mips += f"beq {value_register}, $0, {self.parent.finish_label}\n\n"
+
+        if allocated:
+            memory_location = self.get_allocator().deallocate_register(value_register, float_type)
+            if memory_location:
+                mips += f"lw {value_register}, {memory_location}\n"            
+
+        return mips
+
 
 class ASTForUpdaterNode(ASTForStmtNode):
     def __init__(self, ctx=None):
@@ -2083,6 +2257,13 @@ class ASTForUpdaterNode(ASTForStmtNode):
 
         llvmir = f"br label %{self.parent.cond_label}\n"
         return llvmir
+
+    def enter_mips_text(self):
+        # Override parent method
+        return ""
+
+    def exit_mips_text(self):
+        return ""
 
 
 class ASTForTrueNode(ASTForStmtNode):
@@ -2102,6 +2283,10 @@ class ASTForTrueNode(ASTForStmtNode):
 
         llvmir = f"br label %{self.parent.updater_label}\n"
         return llvmir
+
+    def exit_mips_text(self):
+        mips = f"j {self.parent.cond_label}\n"
+        return mips
 
 
 class ASTGotoNode(ASTBaseNode):
