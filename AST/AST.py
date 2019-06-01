@@ -2125,6 +2125,15 @@ class ASTContinueNode(ASTBaseNode):
         
         llvmir = f"br label %{loop_parent.cond_label}\n"
         return llvmir
+
+    def exit_mips_text(self):
+        # Get loop parent & jump to condition label
+        loop_parent = self.parent
+        while not (isinstance(loop_parent, ASTWhileStmtNode) or isinstance(loop_parent, ASTForStmtNode)):
+            loop_parent = loop_parent.parent
+
+        mips = f"j {loop_parent.cond_label}\n"
+        return mips
     
     def optimise(self):
         # Prune siblings that come after this continue
@@ -2148,6 +2157,15 @@ class ASTBreakNode(ASTBaseNode):
 
         llvmir = f"br label %{loop_parent.finish_label}\n"
         return llvmir
+
+    def exit_mips_text(self):
+        # Get loop parent & jump to finish label
+        loop_parent = self.parent
+        while not (isinstance(loop_parent, ASTWhileStmtNode) or isinstance(loop_parent, ASTForStmtNode)):
+            loop_parent = loop_parent.parent
+        
+        mips = f"j {loop_parent.finish_label}\n"
+        return mips
     
     def optimise(self):
         # Prune siblings that come after this break
