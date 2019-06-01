@@ -99,6 +99,10 @@ def generate_mips(ast, output):
 
                 data += node.exit_mips_data()
                 text += node.exit_mips_text()
+                if "None" in node.exit_mips_text():
+                    print(node)
+                    print(node.parent)
+                    print(node.parent.children)
 
             else:
                 break
@@ -172,8 +176,8 @@ def main(argv):
 
     populate_symbol_table(ast)
     type_checking(ast)
-    # optimise_ast(ast)
-    # prune_unused_variables(ast)
+    #optimise_ast(ast)
+    #prune_unused_variables(ast)
 
     with open(output_ast, "w") as astf:
         ast.generateDot(astf)

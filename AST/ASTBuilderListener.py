@@ -575,9 +575,13 @@ class ASTBuilder(CListener):
             UpdaterChild = AST.ASTForUpdaterNode(ctx=ctx)
             BodyChild = AST.ASTForTrueNode(ctx=ctx)
             InitChild.children = [self.current_node.children[0]]
+            self.current_node.children[0].parent = InitChild
             CondChild.children = [self.current_node.children[1]]
+            self.current_node.children[1].parent = CondChild
             UpdaterChild.children = [self.current_node.children[2]]
+            self.current_node.children[2].parent = UpdaterChild
             BodyChild.children = [self.current_node.children[3]]
+            self.current_node.children[3].parent = BodyChild
             InitChild.parent = self.current_node
             CondChild.parent = self.current_node
             UpdaterChild.parent = self.current_node
@@ -591,7 +595,9 @@ class ASTBuilder(CListener):
             CondChild = AST.ASTWhileCondNode(ctx=ctx)
             BodyChild = AST.ASTWhileTrueNode(ctx=ctx)
             CondChild.children = [self.current_node.children[0]]
+            self.current_node.children[0].parent = CondChild
             BodyChild.children = [self.current_node.children[1]]
+            self.current_node.children[1].parent = BodyChild
             CondChild.parent = self.current_node
             BodyChild.parent = self.current_node
             CondChild.scope = self.current_node.children[0].scope
