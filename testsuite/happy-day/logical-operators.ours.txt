@@ -1,0 +1,54 @@
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 55 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 65 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 75 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 85 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 94 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 105 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 119 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 133 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 173 column 5: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 175 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 177 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 183 column 4: "$f5": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 185 column 5: "$f5": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 187 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 189 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 195 column 4: "$f7": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 197 column 5: "$f7": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 199 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 201 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 207 column 4: "$f9": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 209 column 5: "$f9": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 211 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 213 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 219 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 220 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 222 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 223 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 225 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 227 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 233 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 234 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 235 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 237 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 239 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 241 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 247 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 248 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 249 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 251 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 253 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 255 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 261 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 262 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 263 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 265 column 4: "$f4": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 267 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 269 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 316 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 330 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/logical-operators.asm line 349 column 1: "li": Too many or incorrectly formatted operands. Expected: li $t1,-100
+
+Processing terminated due to errors.

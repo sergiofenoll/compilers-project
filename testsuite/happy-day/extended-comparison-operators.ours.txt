@@ -1,27 +1,38 @@
-0
-1
-0
-1
-1
-0
-1
-0
-1
-0.000000
-0.000000
-0.000000
-0.000000
-0.000000
-0.000000
-0.000000
-0.000000
-0.000000
-0
-1
-1
-1
-0
-0
-1
-0
-1
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 62 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 72 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 82 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 91 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 101 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 112 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 126 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 138 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 150 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 168 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 180 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 192 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 200 column 1: "c.ge.s" is not a recognized operator
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 204 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 212 column 1: "c.ge.s" is not a recognized operator
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 216 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 224 column 1: "c.ge.s" is not a recognized operator
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 228 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 236 column 1: "c.ne.s" is not a recognized operator
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 240 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 248 column 1: "c.ne.s" is not a recognized operator
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 252 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 260 column 1: "c.ne.s" is not a recognized operator
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 264 column 13: "$t0": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 284 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 298 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 312 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 326 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 340 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 354 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 368 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 380 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 392 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/extended-comparison-operators.asm line 402 column 1: "li": Too many or incorrectly formatted operands. Expected: li $t1,-100
+
+Processing terminated due to errors.
