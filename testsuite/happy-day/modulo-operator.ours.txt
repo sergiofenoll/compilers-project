@@ -1,6 +1,0 @@
-MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
-
-Error in /home/sff/Projects/compilers-project/testsuite/happy-day/modulo-operator.asm line 25 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
-Error in /home/sff/Projects/compilers-project/testsuite/happy-day/modulo-operator.asm line 40 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
-
-Processing terminated due to errors.
