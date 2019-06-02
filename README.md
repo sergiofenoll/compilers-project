@@ -46,14 +46,20 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
 ### MIPS:
 
 - Types: `char`, `float`, `int`
-- Reserved words: `if` `else`, `return`
+- Reserved words: `if` `else`, `return`, `while`, `for`, `continue`, `break`
 - Functions:
   - Function definitions
+  - Function calls
 - Local and global variables
 - Operations:
   - Arithmetic operators: `+`, `-`, `*`, `/`, `%`
+  - Comparison operators: `>`, `<`, `!=`, `==`, `>=`, `<=`
   - Logical operators: `&&`, `||`
   - Assignment operators: `=`, `+=`, `-=`, `*=`, `/=`
+- Arrays:
+  - 1-dimensional arrays
+  - Array initialization
+  - Array access
 - Comments
   - Line comments `//`
   - Block comments `/* */`
