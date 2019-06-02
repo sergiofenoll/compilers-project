@@ -393,6 +393,7 @@ def generate_mips_float_comp(node, op):
         mips += f"lwc1 {rhs}, {allocator.get_memory_address(node.right().identifier, node.scope)}\n"
 
     mips += f"{op} {lhs}, {rhs}\n"
+    node.value_register = lhs
     
     if lhs_allocated:
         memory_location = allocator.deallocate_register(lhs, True)
@@ -887,6 +888,10 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
             mips = ""
             allocator = node.get_allocator()
             float_type = node.type() == 'float'
+            try:
+                float_type = node.float_op()
+            except AttributeError:
+                pass
 
             store_op = "swc1" if float_type else "sw"
             load_op = "lwc1" if float_type else "lw"
