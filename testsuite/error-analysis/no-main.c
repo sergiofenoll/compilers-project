@@ -1,3 +1,5 @@
+/* This program has no main function, it can't be compiled */
+
 int f() {
     int a = 5;
     
