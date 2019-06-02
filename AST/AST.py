@@ -403,7 +403,14 @@ class ASTBaseNode:
         return ""
 
     def get_allocator(self):
-        return self.parent.get_allocator()
+        if self.parent:
+            return self.parent.get_allocator()
+        else:
+            lineinfo = ""
+            if self.line_info:
+                lineinfo = f"line {self.line_info[0]}:{self.line_info[1]} "
+            logging.error(f"{lineinfo}No operations in global scope allowed.")
+            exit()
 
     def optimise(self):
         pass

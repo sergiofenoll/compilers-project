@@ -27,7 +27,10 @@ def optimise_ast(ast):
 
     # If statements
     if isinstance(ast, AST.ASTIfStmtNode):
-        ast.children[0].optimise() # Optimise condition node first
+        # Optimise condition node first
+        for child in ast.children[0].children:
+            optimise_ast(child)
+        ast.children[0].optimise() 
         ast.optimise() # Optimise If-subtree (might replace subtree)
         for child in ast.parent.children[n_idx].children:
             optimise_ast(child)
@@ -99,10 +102,6 @@ def generate_mips(ast, output):
 
                 data += node.exit_mips_data()
                 text += node.exit_mips_text()
-                if "None" in node.exit_mips_text():
-                    print(node)
-                    print(node.parent)
-                    print(node.parent.children)
 
             else:
                 break
@@ -176,8 +175,8 @@ def main(argv):
 
     populate_symbol_table(ast)
     type_checking(ast)
-    #optimise_ast(ast)
-    #prune_unused_variables(ast)
+    optimise_ast(ast)
+    prune_unused_variables(ast)
 
     with open(output_ast, "w") as astf:
         ast.generateDot(astf)

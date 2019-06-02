@@ -1,10 +1,19 @@
-#include <stdio.h>
-
-void print_int(int a) {
-    printf("%d\n", a);
+int f() {
+    return 3;
 }
 
-int main(int argc, char** argv) {
-    print_int(5);
-    return 0;
+int main() { 
+    
+    int a = 5;
+    int b = 3;
+    
+    if (b > 0) {
+        a -= 1;
+    } else {
+        a *= 2;
+    }
+    
+    b = a;
+    
+    return b;
 }

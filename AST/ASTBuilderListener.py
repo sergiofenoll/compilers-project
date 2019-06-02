@@ -57,6 +57,16 @@ class ASTBuilder(CListener):
         self.current_node.children.append(node)
         self.current_node = node
 
+    def exitCompilationUnit(self, ctx:CParser.CompilationUnitContext):
+        # Check if program has main function
+        for child in self.current_node.children:
+            if isinstance(child, AST.ASTFunctionDefinitionNode):
+                if child.identifier().identifier == "main":
+                    return
+        # main not found
+        logging.error("No main function, aborting compilation.")
+        exit()
+
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
         identifier = str(ctx.Identifier())
         node = AST.ASTIdentifierNode(identifier, ctx=ctx)
