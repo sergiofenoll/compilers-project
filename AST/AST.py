@@ -2045,7 +2045,8 @@ class ASTDeclarationNode(ASTBaseNode):
             return ""
 
         if self.type() == "char*":
-            self.scope.lookup(self.identifier().identifier).register = self.initializer().value_register
+            if self.initializer():
+                self.scope.lookup(self.identifier().identifier).register = self.initializer().value_register
             return ""
 
         mips = ""
@@ -2659,6 +2660,8 @@ class ASTForCondNode(ASTForStmtNode):
 
     def enter_mips_text(self):
         self.parent.cond_label = f"ForCond{ASTForStmtNode.for_counter}"
+        self.parent.updater_label = f"ForUpdater{ASTForStmtNode.for_counter}"
+        self.parent.true_label = f"ForTrue{ASTForStmtNode.for_counter}"
         self.parent.finish_label = f"ForEnd{ASTForStmtNode.for_counter}"
         mips = f"{self.parent.cond_label}:\n"
         return mips
@@ -2704,9 +2707,10 @@ class ASTForCondNode(ASTForStmtNode):
                 mips += f"lw {value_register}, {memory_location}\n"
 
         if float_type:
-            mips += f"bc1{flag_jump_on} {self.parent.finish_label}\n\n"
+            mips += f"bc1{flag_jump_on} {self.parent.finish_label}\n"
         else:
-            mips += f"beq {value_register}, $0, {self.parent.finish_label}\n\n"
+            mips += f"beq {value_register}, $0, {self.parent.finish_label}\n"
+        mips += f"j {self.parent.true_label}\n\n" # If condition is true, fall through to this jump
 
         if allocated:
             memory_location = self.get_allocator().deallocate_register(value_register, float_type)
@@ -2732,10 +2736,12 @@ class ASTForUpdaterNode(ASTForStmtNode):
 
     def enter_mips_text(self):
         # Override parent method
-        return ""
+        mips = f"{self.parent.updater_label}:\n"
+        return mips
 
     def exit_mips_text(self):
-        return ""
+        mips = f"j {self.parent.cond_label}\n" # After update, check condition again
+        return mips
 
 
 class ASTForTrueNode(ASTForStmtNode):
@@ -2756,8 +2762,12 @@ class ASTForTrueNode(ASTForStmtNode):
         llvmir = f"br label %{self.parent.updater_label}\n"
         return llvmir
 
+    def enter_mips_text(self):
+        mips = f"{self.parent.true_label}:\n"
+        return mips
+
     def exit_mips_text(self):
-        mips = f"j {self.parent.cond_label}\n"
+        mips = f"j {self.parent.updater_label}\n"
         return mips
 
 
@@ -2786,10 +2796,19 @@ class ASTContinueNode(ASTBaseNode):
     def exit_mips_text(self):
         # Get loop parent & jump to condition label
         loop_parent = self.parent
-        while not (isinstance(loop_parent, ASTWhileStmtNode) or isinstance(loop_parent, ASTForStmtNode)):
+        while not ((type(loop_parent) == ASTWhileStmtNode) or (type(loop_parent) == ASTForStmtNode)):
             loop_parent = loop_parent.parent
+        if loop_parent is None:
+            lineinfo = ""
+            if self.line_info:
+                lineinfo = f"line {self.line_info[0]}:{self.line_info[1]} "
+            logging.error(f"{lineinfo}Continue outside of loop body.")
+            exit()
 
-        mips = f"j {loop_parent.cond_label}\n"
+        label = loop_parent.cond_label
+        if isinstance(loop_parent, ASTForStmtNode):
+            label = loop_parent.updater_label
+        mips = f"j {label}\n"
         return mips
     
     def optimise(self):
