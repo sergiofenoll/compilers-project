@@ -46,9 +46,9 @@ do
 
         echo "Running our generated code and storing its output in `echo $file | sed 's/\.c$/\.ours\.txt/'`"
         if [[ $extension == "asm" ]]; then
-            $runner `echo $file | sed "s/\.c*/\.$extension/"` > `echo $file | sed 's/\.c$/\.ours\.txt/'`
-        else
             $runner `echo $file | sed "s/\.c*/\.$extension/"` | tail -n +3 | head -n +1 > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+        else
+            $runner `echo $file | sed "s/\.c*/\.$extension/"` > `echo $file | sed 's/\.c$/\.ours\.txt/'`
         fi
 
         echo "Comparing output of GCC binary and ours"
