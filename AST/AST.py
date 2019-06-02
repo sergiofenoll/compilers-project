@@ -920,7 +920,11 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
             fstr = fstr.replace('"', '')
             m = re.findall(r"([^%]+)|(%s)|(%d)|(%i)|(%c)|(%f)", fstr)
 
-            str_count = 0
+
+            if not hasattr(ASTFunctionCallNode.exit_mips_text, str_count):
+                ASTFunctionCallNode.exit_mips_text.str_count = 0
+            else:
+                ASTFunctionCallNode.exit_mips_text.str_count += 1
             arg_count = 1
             for s in m:
                 if s[0] != '' or s[1] != '':
