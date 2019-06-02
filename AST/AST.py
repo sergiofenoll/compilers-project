@@ -1223,6 +1223,12 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         if isinstance(self.children[1], ASTConstantNode):
             entry = self.scope.lookup(self.children[0].identifier)
             if entry:
+                cf_parent = self.parent
+                while cf_parent:
+                    if isinstance(cf_parent, ASTIfStmtNode) or isinstance(cf_parent, ASTForStmtNode) or isinstance(cf_parent, ASTWhileStmtNode):
+                        entry.value = None
+                        return
+                    cf_parent = cf_parent.parent
                 entry.value = self.children[1].value()
 
     def exit_llvm_text(self):
@@ -1278,9 +1284,16 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
 
     def populate_symbol_table(self):
         # If the rhs is a constant, assign the symbol table value
+        # Exception: in control flow bodies, set value to None
         if isinstance(self.children[1], ASTConstantNode):
             entry = self.scope.lookup(self.children[0].identifier)
             if entry:
+                cf_parent = self.parent
+                while cf_parent:
+                    if isinstance(cf_parent, ASTIfStmtNode) or isinstance(cf_parent, ASTForStmtNode) or isinstance(cf_parent, ASTWhileStmtNode):
+                        entry.value = None
+                        return
+                    cf_parent = cf_parent.parent
                 entry.value = self.children[1].value()
 
 

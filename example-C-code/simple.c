@@ -5,7 +5,7 @@ int f() {
 int main() { 
     
     int a = 5;
-    int b = 3;
+    int b = f();
     
     if (b > 0) {
         a -= 1;
