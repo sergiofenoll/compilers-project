@@ -2778,6 +2778,17 @@ class ASTReturnNode(ASTBaseNode):
         # Set $v0 to return value
         mips = ""
         float_type = self.type() == "float"
+        if isinstance(self.children[0], ASTBinaryExpressionNode):
+            float_type = self.children[0].float_op()
+        # Find function type
+        function_return_type = None
+        ancestor = self.parent
+        while function_return_type is None:
+            if isinstance(ancestor, ASTFunctionDefinitionNode):
+                function_return_type = c2llvm_type(ancestor.type())
+                break
+            ancestor = ancestor.parent
+
         move_op = "mfc1" if float_type else "move"
         load_op = "lwc1" if float_type else "lw"
         value_register = self.children[0].value_register
@@ -2796,7 +2807,12 @@ class ASTReturnNode(ASTBaseNode):
             memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
             mips += f"{load_op} {value_register}, {memory_address}\n"
         
-        return_reg = f"${'f' if float_type else 'v'}0"
+        return_reg = "$v0"
+        if function_return_type == "float":
+            return_reg = "$f0"
+        if function_return_type != "float" and float_type:
+            # Convert single precision in return_reg to word
+            mips += f"cvt.w.s {value_register}, {value_register}\n"
         mips += f"{move_op} {return_reg}, {value_register}\n"
 
         if allocated:
