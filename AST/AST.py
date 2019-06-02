@@ -2008,7 +2008,8 @@ class ASTDeclarationNode(ASTBaseNode):
             return ""
 
         if self.type() == "char*":
-            self.scope.lookup(self.identifier().identifier).register = self.initializer().value_register
+            if self.initializer():
+                self.scope.lookup(self.identifier().identifier).register = self.initializer().value_register
             return ""
 
         mips = ""
