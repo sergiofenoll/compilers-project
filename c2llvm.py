@@ -12,6 +12,7 @@ logging.basicConfig(format='[%(levelname)s] %(message)s')
 
 
 def optimise_ast(ast):
+
     # Applies the following optimisations where possible:
     #   - Remove code that comes after return, break or continue
     #   - Remove declarations for unused variables
@@ -26,7 +27,10 @@ def optimise_ast(ast):
 
     # If statements
     if isinstance(ast, AST.ASTIfStmtNode):
-        ast.children[0].optimise() # Optimise condition node first
+        # Optimise condition node first
+        for child in ast.children[0].children:
+            optimise_ast(child)
+        ast.children[0].optimise() 
         ast.optimise() # Optimise If-subtree (might replace subtree)
         for child in ast.parent.children[n_idx].children:
             optimise_ast(child)

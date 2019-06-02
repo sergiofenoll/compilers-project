@@ -494,6 +494,18 @@ class ASTIdentifierNode(ASTBaseNode):
         self.name = "Identifier:" + str(value)
         self.value_register = None
 
+    def enter_llvm_data(self):
+        # Set value_register
+        entry = self.scope.lookup(self.identifier)
+        scope = self.scope.scope_level(self.identifier)
+        rank = self.scope.parent.children.index(self.scope)
+
+        if entry:
+            register = f"%{self.identifier}.scope{scope}.rank{rank}" if scope else f"@{self.identifier}"
+            entry.register = register
+            self.value_register = register
+        return ""
+
     def optimise(self):
         # If value known from Symbol Table, swap with constant value
 
@@ -1851,6 +1863,18 @@ class ASTDeclarationNode(ASTBaseNode):
         register = self.identifier().value_register
         llvm_type = c2llvm_type(self.type())
 
+        if register is None:
+            # Set identifier register
+            identifier = self.identifier()
+            entry = identifier.scope.lookup(identifier.identifier)
+            scope = identifier.scope.scope_level(identifier.identifier)
+            rank = identifier.scope.parent.children.index(identifier.scope)
+
+            if entry:
+                register = f"%{identifier.identifier}.scope{scope}.rank{rank}" if scope else f"@{identifier.identifier}"
+                entry.register = register
+                identifier.value_register = register
+
         if self.scope.parent is None:
             # Global register
             return f"{register} = global {llvm_type}\n"
@@ -2817,7 +2841,7 @@ class ASTFunctionDefinitionNode(ASTBaseNode):
 
     def enter_llvm_text(self):
         type_specifier = c2llvm_type(self.returnType().type())
-        identifier_name = self.identifier().value_register
+        identifier_name = f"@{self.identifier().identifier}"
         has_params = isinstance(self.children[2], ASTParameterTypeList)
         if has_params:
             args = self.children[2]
