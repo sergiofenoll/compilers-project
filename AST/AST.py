@@ -957,6 +957,9 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
                     mips += f"{store_op} {reg}, ($sp)\n"
                     mips += f"add $sp, $sp, 4\n"
             mips += f"jal fun_{self.identifier().identifier}\n"
+
+        return_reg = f"${'f' if float_type else 'v'}0"
+        self.value_register = return_reg
         return mips
 
 class ASTPostfixIncrementNode(ASTUnaryExpressionNode):
@@ -1975,7 +1978,7 @@ class ASTDeclarationNode(ASTBaseNode):
                     mem_loc = self.get_allocator().deallocate_register(self.initializer().value_register, float_type)
                     if mem_loc:
                         mips += f"{load_op} {self.initializer().value_register}, {mem_loc}\n"
-                elif isinstance(self.initializer(), ASTExpressionNode):
+                elif isinstance(self.initializer(), ASTExpressionNode) and not isinstance(self.initializer(), ASTFunctionCallNode):
                     allocated = True
 
                 mips += f"{store_op} {source_reg}, {mem_addr}\n"
@@ -2761,7 +2764,8 @@ class ASTReturnNode(ASTBaseNode):
             memory_address = self.get_allocator().get_memory_address(self.children[0].identifier, self.scope)
             mips += f"{load_op} {value_register}, {memory_address}\n"
         
-        mips += f"{move_op} $v0, {value_register}\n"
+        return_reg = f"${'f' if float_type else 'v'}0"
+        mips += f"{move_op} {return_reg}, {value_register}\n"
 
         if allocated:
             memory_location = self.get_allocator().deallocate_register(value_register, float_type)
