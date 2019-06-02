@@ -278,6 +278,7 @@ def generate_mips_expr(node, op):
                 mips += f"sw {target_reg}, {allocator.spilled_regs[target_reg]}\n"
             load_op = "lwc1" if float_type else "lw"
             memory_address = lhs.scope.lookup(lhs.identifier).memory_location
+            mips += f"{load_op} {target_reg}, {memory_address}\n"
             if lhs.type() != expr_type:
                 mips_impl_cast, target_reg = generate_mips_impl_cast(lhs, target_reg, expr_type)
                 mips += mips_impl_cast

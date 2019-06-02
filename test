@@ -12,10 +12,8 @@ case $1 in
         extension="ll"
     ;;
     "mips")
-        echo "This is not implemented yet"
-        exit 0
         pyfile="c2mips.py"
-        runner="java -jar mips-4.5.jar"
+        runner="java -jar mars-4.5.jar"
         extension="asm"
     ;;
     "clean")
@@ -47,7 +45,11 @@ do
         rm `echo $file | sed 's/\.c$/\.out/'`
 
         echo "Running our generated code and storing its output in `echo $file | sed 's/\.c$/\.ours\.txt/'`"
-        $runner `echo $file | sed "s/\.c*/\.$extension/"` > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+        if [[ $extension == "asm" ]]; then
+            $runner `echo $file | sed "s/\.c*/\.$extension/"` > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+        else
+            $runner `echo $file | sed "s/\.c*/\.$extension/"` | tail -n +3 | head -n +1 > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+        fi
 
         echo "Comparing output of GCC binary and ours"
         diff -q `echo $file | sed 's/\.c$/\.theirs\.txt/'` `echo $file | sed 's/\.c$/\.ours\.txt/'`

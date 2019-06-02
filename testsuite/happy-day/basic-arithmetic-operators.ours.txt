@@ -1,12 +1,18 @@
-14
-6
-40
-2
-0.000000
-0.000000
-0.000000
-0.000000
-¢
- 
-¡
-
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 35 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 44 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 53 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 63 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 76 column 1: "lwc1": Too few or incorrectly formatted operands. Expected: lwc1 $f1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 85 column 1: "lwc1": Too few or incorrectly formatted operands. Expected: lwc1 $f1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 94 column 1: "lwc1": Too few or incorrectly formatted operands. Expected: lwc1 $f1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 102 column 1: "div.s": Too few or incorrectly formatted operands. Expected: div.s $f0,$f1,$f3
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 103 column 6: "$f7": operand is of incorrect type
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 104 column 1: "lwc1": Too few or incorrectly formatted operands. Expected: lwc1 $f1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 117 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 126 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 135 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/basic-arithmetic-operators.asm line 145 column 1: "lw": Too few or incorrectly formatted operands. Expected: lw $t1,-100($t2)
+
+Processing terminated due to errors.

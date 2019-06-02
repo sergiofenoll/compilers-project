@@ -1,12 +1,6 @@
-14
-10
-40
-10
-0.000000
-0.000000
-0.000000
-0.000000
-¢
-a
-¡
-ÿ
+MARS 4.5  Copyright 2003-2014 Pete Sanderson and Kenneth Vollmar
+
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/assignment-operators.asm line 109 column 1: "div.s": Too few or incorrectly formatted operands. Expected: div.s $f0,$f1,$f3
+Error in /home/sff/Projects/compilers-project/testsuite/happy-day/assignment-operators.asm line 110 column 6: "$f7": operand is of incorrect type
+
+Processing terminated due to errors.
