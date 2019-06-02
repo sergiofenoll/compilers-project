@@ -2921,8 +2921,8 @@ class ASTReturnNode(ASTBaseNode):
             allocated = True
             value_register, spilled = self.get_allocator().allocate_next_register(float_type)
             target_value = self.children[0].value() if not float_type else self.children[0].value_register
-            load_op = "li" if not float_type else "l.s"
-            mips += f"{load_op} {value_register}, {target_value}\n"
+            load_imm = "li" if not float_type else "l.s"
+            mips += f"{load_imm} {value_register}, {target_value}\n"
         if isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory into register
             allocated = True
@@ -2942,7 +2942,6 @@ class ASTReturnNode(ASTBaseNode):
             memory_location = self.get_allocator().deallocate_register(value_register, float_type)
             if memory_location:
                 mips += f"{load_op} {value_register}, {memory_location}\n"
-
         return mips
 
     def optimise(self):
