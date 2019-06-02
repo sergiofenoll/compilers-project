@@ -20,6 +20,7 @@ build.sh
 *.png
 *.ll
 *.asm
+*.txt
 
 README.html
 

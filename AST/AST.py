@@ -269,7 +269,9 @@ def generate_mips_expr(node, op):
     expr_type = get_expression_type(node)
 
     # Get proper registers
+    allocated = False
     if isinstance(lhs, ASTIdentifierNode) or isinstance(lhs, ASTBinaryExpressionNode) or isinstance(rhs, ASTArrayAccessNode):
+        allocated = True
         target_reg = lhs.value_register
         float_type = lhs.type() == "float"
         if target_reg is None:
@@ -283,6 +285,7 @@ def generate_mips_expr(node, op):
                 mips_impl_cast, target_reg = generate_mips_impl_cast(lhs, target_reg, expr_type)
                 mips += mips_impl_cast
     if isinstance(rhs, ASTIdentifierNode) or isinstance(rhs, ASTBinaryExpressionNode) or isinstance(rhs, ASTArrayAccessNode):
+        allocated = True
         source_reg = rhs.value_register
         float_type = rhs.type() == "float"
         if source_reg is None:
@@ -299,6 +302,7 @@ def generate_mips_expr(node, op):
     immediate_operations = ["add", "div", "sub", "mul", "sgt", "seq", "sne"]
     if isinstance(lhs, ASTConstantNode):
         # Load lhs into register
+        allocated = True
         float_type = lhs.type() == "float"
         target_reg, spilled = allocator.allocate_next_register(float_type)
         if spilled:
@@ -310,6 +314,7 @@ def generate_mips_expr(node, op):
     if isinstance(rhs, ASTConstantNode):
         float_type = rhs.type() == "float"
         if op not in immediate_operations:
+            allocated = True
             # Load rhs into register
             source_reg, spilled = allocator.allocate_next_register(float_type)
             if spilled:
@@ -319,6 +324,7 @@ def generate_mips_expr(node, op):
             else:
                 mips += f"l.s {source_reg}, {rhs.value_register}\n"
         else:
+            allocated = False
             source_reg = rhs.value()
         if rhs.type() != expr_type:
             mips_impl_cast, source_reg = generate_mips_impl_cast(rhs, source_reg, expr_type)
@@ -331,15 +337,17 @@ def generate_mips_expr(node, op):
                 move_op = "mfhi"
             else: # isinstance(ASTDivisionNode)
                 move_op = "mflo"
-            mips += f"{op} {target_reg}, {source_reg}\n"
-            mips += f"{move_op} {target_reg}\n"
+            if op == "div":
+                mips += f"{op} {target_reg}, {source_reg}\n"
+                mips += f"{move_op} {target_reg}\n"
+            else:
+                mips += f"{op} {target_reg}, {target_reg}, {source_reg}\n"
         else:
             mips += f"{op} {target_reg}, {target_reg}, {source_reg}\n"
     else:
         mips += f"{op} {target_reg}, {target_reg}, {source_reg}\n"
     node.value_register = target_reg
-
-    if not isinstance(rhs, ASTConstantNode):
+    if allocated:
         memory_location = allocator.deallocate_register(source_reg, float_type)
         if memory_location:
             mips += f"lw {source_reg}, {memory_location}\n"
@@ -385,6 +393,7 @@ def generate_mips_float_comp(node, op):
         mips += f"lwc1 {rhs}, {allocator.get_memory_address(node.right().identifier, node.scope)}\n"
 
     mips += f"{op} {lhs}, {rhs}\n"
+    node.value_register = lhs
     
     if lhs_allocated:
         memory_location = allocator.deallocate_register(lhs, True)
@@ -879,10 +888,15 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
             mips = ""
             allocator = node.get_allocator()
             float_type = node.type() == 'float'
+            try:
+                float_type = node.float_op()
+            except AttributeError:
+                pass
 
             store_op = "swc1" if float_type else "sw"
             load_op = "lwc1" if float_type else "lw"
             load_imm = "l.s" if float_type else "li"
+            move_op = "mov.s" if float_type else "move"
 
             reg, spilled = allocator.allocate_next_register(float_type)
             if spilled:
@@ -892,8 +906,10 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
                 mips += f"{load_imm} {reg}, {node.value_register if float_type else node.value()}\n"
             elif isinstance(node, ASTIdentifierNode):
                 mips += f"{load_op} {reg}, {allocator.get_memory_address(node.identifier, node.scope)}\n"
+            elif isinstance(node, ASTAssignmentNode):
+                mips += f"{load_op} {reg}, {allocator.get_memory_address(node.identifier().identifier, node.scope)}\n"
             elif isinstance(node, ASTExpressionNode):
-                mips += f"{load_op} {reg}, {node.value_register}\n"
+                mips += f"{move_op} {reg}, {node.value_register}\n"
 
             memory_location = allocator.deallocate_register(reg, float_type)
             if memory_location:
