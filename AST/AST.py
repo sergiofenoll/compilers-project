@@ -721,22 +721,30 @@ class ASTStringLiteralNode(ASTBaseNode):
         return f'{self.value_register} = private unnamed_addr constant {self.size} c"{cleaned_string}\\00"\n'
 
     def enter_mips_data(self):
-        if isinstance(self.parent, ASTFunctionCallNode):
+        if isinstance(self.parent, ASTFunctionCallNode,):
             self.value_register = f"temp_str_{ASTStringLiteralNode.string_counter}"
             ASTStringLiteralNode.string_counter += 1
+        elif isinstance(self.parent, ASTAssignmentNode):
+            self.value_register = f"temp_str_{ASTStringLiteralNode.string_counter}"
+            ASTStringLiteralNode.string_counter += 1
+            self.scope.lookup(self.parent.identifier().identifier).register = self.value_register
         else:
             self.value_register = self.parent.identifier().identifier
+            self.scope.lookup(self.parent.identifier().identifier).register = self.value_register
         
         mips = ""
         fstr = self.value().replace('"', '')
         m = re.findall(r"([^%]+)|(%s)|(%d)|(%i)|(%c)|(%f)", fstr)
-        str_count = 0
-        for s in m:
-            if s[0] != '':
-                # Matched a string as opposed to a code
-                fstr_loc = f"{self.value_register}_str_part_{str_count}"
-                mips += f'{fstr_loc}: .asciiz "{s[0]}"\n'
-                str_count += 1
+        if len(m) > 1:
+            str_count = 0
+            for s in m:
+                if s[0] != '':
+                    # Matched a string as opposed to a code
+                    fstr_loc = f"{self.value_register}_str_part_{str_count}"
+                    mips += f'{fstr_loc}: .asciiz "{s[0]}"\n'
+                    str_count += 1
+        else:
+            mips += f'{self.value_register}: .asciiz "{fstr}"\n'
         return mips
 
 
@@ -939,15 +947,23 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
             str_count = 0
             arg_count = 1
             for s in m:
-                if s[0] != '' or s[1] != '':
+                if s[0] != '':
                     # Matched a string as opposed to a code
-                    fstr_loc = f"{fstr_prefix}_str_part_{str_count}"
+                    if len(m) == 1:
+                        fstr_loc = fstr_prefix
+                    else:
+                        fstr_loc = f"{fstr_prefix}_str_part_{str_count}"
                     mips += f"la $a0, {fstr_loc}\n"
                     mips += "li $v0, 4\n"
                     mips += "syscall\n"
                     str_count += 1
                     if s[1] == '':
                         continue
+                elif s[1] != '':
+                    fstr_loc = allocator.get_memory_address(self.arguments()[arg_count].identifier, self.scope)
+                    mips += f"lw $a0, {fstr_loc}\n"
+                    mips += "li $v0, 4\n"
+                    mips += "syscall\n"
                 elif s[2] != '' or s[3] != '':
                     # Matched an integer code
                     mips_load_arg, reg = load_var_or_constant(self.arguments()[arg_count])
@@ -1342,8 +1358,13 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
                 mips += f"{ass_store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
             mips += f"{ass_load_op} {id_reg}, {self.get_allocator().get_memory_address(self.right().identifier, self.scope)}\n"
             source_reg = id_reg
-
-        if self.right().type() != self.type():
+        elif isinstance(self.right(), ASTStringLiteralNode):
+            allocated = True
+            source_reg, spilled = self.get_allocator().allocate_next_register(ass_float_type)
+            if spilled:
+                mips += f"{ass_store_op} {source_reg}, {self.get_allocator().spilled_regs[source_reg]}\n"
+            mips += f"la {source_reg}, {self.right().value_register}\n"
+        if self.right().type() != self.type() and not (self.right().type() == "char*"):
             mips_impl_cast, source_reg = generate_mips_impl_cast(self.right(), source_reg, self.type())
             mips += mips_impl_cast
 
@@ -2020,7 +2041,7 @@ class ASTDeclarationNode(ASTBaseNode):
             return ""
 
     def exit_mips_text(self):
-        if not self.scope.depth:
+        if not self.scope.depth or not self.initializer():
             return ""
 
         if self.type() == "char*":
@@ -2900,8 +2921,8 @@ class ASTReturnNode(ASTBaseNode):
             allocated = True
             value_register, spilled = self.get_allocator().allocate_next_register(float_type)
             target_value = self.children[0].value() if not float_type else self.children[0].value_register
-            load_op = "li" if not float_type else "l.s"
-            mips += f"{load_op} {value_register}, {target_value}\n"
+            load_imm = "li" if not float_type else "l.s"
+            mips += f"{load_imm} {value_register}, {target_value}\n"
         if isinstance(self.children[0], ASTIdentifierNode):
             # Load variable from memory into register
             allocated = True
@@ -2921,7 +2942,6 @@ class ASTReturnNode(ASTBaseNode):
             memory_location = self.get_allocator().deallocate_register(value_register, float_type)
             if memory_location:
                 mips += f"{load_op} {value_register}, {memory_location}\n"
-
         return mips
 
     def optimise(self):

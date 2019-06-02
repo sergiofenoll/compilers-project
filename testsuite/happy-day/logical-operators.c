@@ -17,32 +17,6 @@ int main(int argc, char** argv) {
     printf("%d\n", 1 || 0);
     printf("%d\n", 0 || 0);
 
-    // Not
-    printf("%d\n", !ilhs);
-    printf("%d\n", !1);
-    printf("%d\n", !0);
-
-    // Float
-    float flhs = 2.30;
-    float frhs = 8.40;
-
-    // And
-    printf("%f\n", flhs && frhs);
-    printf("%f\n", 1.0 && 1.0);
-    printf("%f\n", 1.0 && 0.0);
-    printf("%f\n", 0.0 && 0.0);
-
-    // Or
-    printf("%f\n", flhs || frhs);
-    printf("%f\n", 1.0 || 1.0);
-    printf("%f\n", 1.0 || 0.0);
-    printf("%f\n", 0.0 || 0.0);
-
-    // Not
-    printf("%f\n", !flhs);
-    printf("%f\n", !1.0);
-    printf("%f\n", !0.0);
-
     // Char
     char clhs = 'a';
     char crhs = 'A';
@@ -52,8 +26,5 @@ int main(int argc, char** argv) {
 
     // Or
     printf("%d\n", clhs || crhs);
-
-    // Not
-    printf("%d\n", !clhs);
     return 0;
 }
