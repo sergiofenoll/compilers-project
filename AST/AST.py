@@ -498,7 +498,8 @@ class ASTIdentifierNode(ASTBaseNode):
         # Set value_register
         entry = self.scope.lookup(self.identifier)
         scope = self.scope.scope_level(self.identifier)
-        rank = self.scope.parent.children.index(self.scope)
+        if scope:
+            rank = self.scope.identifier_rank(self.identifier)
 
         if entry:
             register = f"%{self.identifier}.scope{scope}.rank{rank}" if scope else f"@{self.identifier}"
@@ -538,7 +539,7 @@ class ASTIdentifierNode(ASTBaseNode):
         entry = self.scope.lookup(self.identifier)
         scope = self.scope.scope_level(self.identifier)
         if scope:
-            rank = self.scope.parent.children.index(self.scope)
+            rank = self.scope.identifier_rank(self.identifier)
 
         if entry:
             register = f"%{self.identifier}.scope{scope}.rank{rank}" if scope else f"@{self.identifier}"
@@ -858,7 +859,7 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
 
         mips = ""
         allocator = self.get_allocator()
-        float_type = None
+        float_type = self.type() == "float"
         if self.identifier().identifier == "printf":
             fstr_prefix = self.arguments()[0].value_register or self.scope.lookup(self.arguments()[0].identifier).register
             
@@ -1868,7 +1869,8 @@ class ASTDeclarationNode(ASTBaseNode):
             identifier = self.identifier()
             entry = identifier.scope.lookup(identifier.identifier)
             scope = identifier.scope.scope_level(identifier.identifier)
-            rank = identifier.scope.parent.children.index(identifier.scope)
+            if scope:
+                rank = self.scope.identifier_rank(identifier.identifier)
 
             if entry:
                 register = f"%{identifier.identifier}.scope{scope}.rank{rank}" if scope else f"@{identifier.identifier}"

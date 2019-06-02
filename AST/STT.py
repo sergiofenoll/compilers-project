@@ -57,6 +57,13 @@ class STTNode:
                     return scope.depth
         return None
 
+    def identifier_rank(self, identifier):
+        if identifier in self.table:
+            return self.parent.children.index(self)
+        else:
+            return self.parent.identifier_rank(identifier)
+        
+
     def generateDot(self, output):
         output.write(self.__dot_header)
         ncount = 1
