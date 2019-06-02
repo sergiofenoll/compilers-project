@@ -3,8 +3,6 @@ _C(-ish) compiler made for a Compilers course by Jonathan Meyer & Sergio Fenoll.
 
 This document contains an overview of the project structure, as well as an overview of the implemented features and instruction on how to build the project itself.
 
-As of the time of writing, the 21st of April 2019, a number of the mandatory requirements haven't been fully implemented yet. During the week of the 22nd of April, we will continue work on the compiler and we expect to finish a large part of these requirements by the day of the evaluation.
-
 ## Project structure
 **`parser/`:**
 
