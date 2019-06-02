@@ -119,8 +119,11 @@ def hexify_float(f):
 
 def get_expression_type(node):
     # Gets a node's type given its left & right child
-    l_type = node.left().type()
-    r_type = node.right().type()
+    try:
+        l_type = node.left().type()
+        r_type = node.right().type()
+    except AttributeError:
+        return node.type()
 
     if l_type == "float" or r_type == "float":
         return "float"
@@ -218,6 +221,37 @@ def generate_llvm_impl_cast(origin_node, origin_register, dest_type):
     return llvmir
 
 
+def generate_mips_impl_cast(node, reg, dest_type):
+    mips = ""
+    origin_type = get_expression_type(node)
+    allocator = node.get_allocator()
+    origin_float_type = node.type() == "float"
+    dest_float_type = dest_type == "float"
+    cast_weight = {
+        "char": 0,
+        "int": 1,
+        "float": 2,
+    }
+    dest_reg, spilled = allocator.allocate_next_register(dest_float_type)
+    if spilled:
+        mips += f"sw {dest_reg}, {allocator.spilled_regs[dest_reg]}\n"
+    if cast_weight[origin_type] < cast_weight[dest_type]:
+        if dest_type == "float":
+            mips += f"mtc1 {reg}, {dest_reg}\n"
+            mips += f"cvt.s.w {dest_reg}, {dest_reg}\n"
+    elif cast_weight[origin_type] > cast_weight[dest_type]:
+        if origin_type == "float":
+            logging.warning(f"Implicit conversion from float to int")
+            mips += f"mfc1 {dest_reg}, {reg}\n"
+            mips += f"cvt.w.s {reg}, {reg}\n"
+    else:
+        return "", ""  # origin_type and dest_type must be the same, no need to cast at all
+    memory_location = allocator.deallocate_register(reg, origin_float_type)
+    if memory_location:
+        mips += f"lw {reg}, {memory_location}\n"
+    return mips, dest_reg
+
+
 def generate_mips_expr(node, op):
     """
         Generate mips (binary) expression of the form: op d, t, s
@@ -231,27 +265,25 @@ def generate_mips_expr(node, op):
     lhs = node.left()
     rhs = node.right()
     allocator = node.get_allocator()
-    float_type = False
-
-    # No implicit conversions: check types
-    if "float" in [lhs.type(), rhs.type()]:
-        if lhs.type() != rhs.type():
-            logging.error(f"line {node.line_info[0]}:{node.line_info[1]} Implicit conversion not supported.")
-        else:
-            float_type = True
+    
+    expr_type = get_expression_type(node)
 
     # Get proper registers
     if isinstance(lhs, ASTIdentifierNode) or isinstance(lhs, ASTBinaryExpressionNode) or isinstance(rhs, ASTArrayAccessNode):
         target_reg = lhs.value_register
+        float_type = lhs.type() == "float"
         if target_reg is None:
             target_reg, spilled = allocator.allocate_next_register(float_type)
             if spilled:
                 mips += f"sw {target_reg}, {allocator.spilled_regs[target_reg]}\n"
             load_op = "lwc1" if float_type else "lw"
             memory_address = lhs.scope.lookup(lhs.identifier).memory_location
-            mips += f"{load_op} {target_reg}, {memory_address}\n"
+            if lhs.type() != expr_type:
+                mips_impl_cast, target_reg = generate_mips_impl_cast(lhs, target_reg, expr_type)
+                mips += mips_impl_cast
     if isinstance(rhs, ASTIdentifierNode) or isinstance(rhs, ASTBinaryExpressionNode) or isinstance(rhs, ASTArrayAccessNode):
         source_reg = rhs.value_register
+        float_type = rhs.type() == "float"
         if source_reg is None:
             source_reg, spilled = allocator.allocate_next_register(float_type)
             if spilled:
@@ -259,15 +291,23 @@ def generate_mips_expr(node, op):
             load_op = "lwc1" if float_type else "lw"
             memory_address = rhs.scope.lookup(rhs.identifier).memory_location
             mips += f"{load_op} {source_reg}, {memory_address}\n"
+            if rhs.type() != expr_type:
+                mips_impl_cast, source_reg = generate_mips_impl_cast(rhs, source_reg, expr_type)
+                mips += mips_impl_cast
 
     immediate_operations = ["add", "div", "sub", "mul", "sgt", "seq", "sne"]
     if isinstance(lhs, ASTConstantNode):
         # Load lhs into register
+        float_type = lhs.type() == "float"
         target_reg, spilled = allocator.allocate_next_register(float_type)
         if spilled:
-                mips += f"sw {target_reg}, {allocator.spilled_regs[target_reg]}\n"
-        mips += f"li {target_reg}, {lhs.value()}\n"    
+            mips += f"sw {target_reg}, {allocator.spilled_regs[target_reg]}\n"
+        mips += f"li {target_reg}, {lhs.value()}\n"
+        if lhs.type() != expr_type:
+            mips_impl_cast, target_reg = generate_mips_impl_cast(lhs, target_reg, expr_type)
+            mips += mips_impl_cast
     if isinstance(rhs, ASTConstantNode):
+        float_type = rhs.type() == "float"
         if op not in immediate_operations:
             # Load rhs into register
             source_reg, spilled = allocator.allocate_next_register(float_type)
@@ -279,6 +319,9 @@ def generate_mips_expr(node, op):
                 mips += f"l.s {source_reg}, {rhs.value_register}\n"
         else:
             source_reg = rhs.value()
+        if rhs.type() != expr_type:
+            mips_impl_cast, source_reg = generate_mips_impl_cast(rhs, source_reg, expr_type)
+            mips += mips_impl_cast
 
     if op == "div" or op == "div.s":
         if not isinstance(rhs, ASTConstantNode):
@@ -298,7 +341,6 @@ def generate_mips_expr(node, op):
     if not isinstance(rhs, ASTConstantNode):
         memory_location = allocator.deallocate_register(source_reg, float_type)
         if memory_location:
-            # Spilled register is free again, restore value
             mips += f"lw {source_reg}, {memory_location}\n"
     return mips
 
@@ -1257,26 +1299,36 @@ class ASTAssignmentNode(ASTBinaryExpressionNode):
         float_type = self.type() == "float"
         mips = ""
 
-        source_reg = self.right().value_register
         store_op = "swc1" if float_type else "sw"
         load_op = "lwc1" if float_type else "lw"
         load_imm = "l.s" if float_type else "li"
+        
+        ass_float_type = self.right().type() == "float"
+        ass_store_op = "swc1" if ass_float_type else "sw"
+        ass_load_op = "lwc1" if ass_float_type else "lw"
+        ass_load_imm = "l.s" if ass_float_type else "li"
+        
+        source_reg = self.right().value_register
         allocated = False
         if isinstance(self.right(), ASTConstantNode):
             allocated = True
-            init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
-            init_value = self.right().value_register if float_type else self.right().value()
+            init_reg, spilled = self.get_allocator().allocate_next_register(ass_float_type)
+            init_value = self.right().value_register if ass_float_type else self.right().value()
             if spilled:
-                mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
-            mips += f"{load_imm} {init_reg}, {init_value}\n"
+                mips += f"{ass_store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
+            mips += f"{ass_load_imm} {init_reg}, {init_value}\n"
             source_reg = init_reg
         elif isinstance(self.right(), ASTIdentifierNode):
             allocated = True
-            id_reg, spilled = self.get_allocator().allocate_next_register(float_type)
+            id_reg, spilled = self.get_allocator().allocate_next_register(ass_float_type)
             if spilled:
-                mips += f"{store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
-            mips += f"{load_op} {id_reg}, {self.get_allocator().get_memory_address(self.right().identifier, self.scope)}\n"
+                mips += f"{ass_store_op} {id_reg}, {self.get_allocator().spilled_regs[id_reg]}\n"
+            mips += f"{ass_load_op} {id_reg}, {self.get_allocator().get_memory_address(self.right().identifier, self.scope)}\n"
             source_reg = id_reg
+
+        if self.right().type() != self.type():
+            mips_impl_cast, source_reg = generate_mips_impl_cast(self.right(), source_reg, self.type())
+            mips += mips_impl_cast
 
         mem_addr = self.get_allocator().get_memory_address(self.identifier().identifier, self.scope)
         if isinstance(self.left(), ASTArrayAccessNode):
@@ -1985,12 +2037,17 @@ class ASTDeclarationNode(ASTBaseNode):
             if self.initializer():
                 # This variable is initialized
                 # Store variable in memory
+                init_float_type = self.initializer().type() == "float"
+                store_op = "swc1" if init_float_type else "sw"
+                load_op = "lwc1" if init_float_type else "lw"
+                load_imm = "l.s" if init_float_type else "li"
+
                 source_reg = self.initializer().value_register
                 allocated = False
                 if isinstance(self.initializer(), ASTConstantNode):
                     allocated = True
-                    init_reg, spilled = self.get_allocator().allocate_next_register(float_type)
-                    init_value = self.initializer().value_register if float_type else self.initializer().value()
+                    init_reg, spilled = self.get_allocator().allocate_next_register(init_float_type)
+                    init_value = self.initializer().value_register if init_float_type else self.initializer().value()
                     if spilled:
                         mips += f"{store_op} {init_reg}, {self.get_allocator().spilled_regs[init_reg]}\n"
                     mips += f"{load_imm} {init_reg}, {init_value}\n"
@@ -2015,6 +2072,13 @@ class ASTDeclarationNode(ASTBaseNode):
                 elif isinstance(self.initializer(), ASTExpressionNode) and not isinstance(self.initializer(), ASTFunctionCallNode):
                     allocated = True
 
+                if self.initializer().type() != self.type():
+                    mips_impl_cast, source_reg = generate_mips_impl_cast(self.initializer(), source_reg, self.type())
+                    mips += mips_impl_cast
+
+                store_op = "swc1" if float_type else "sw"
+                load_op = "lwc1" if float_type else "lw"
+                load_imm = "l.s" if float_type else "li"
                 mips += f"{store_op} {source_reg}, {mem_addr}\n"
 
                 if allocated:
