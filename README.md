@@ -66,6 +66,9 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
 
 ### Error analysis:
 - Typechecking (warning/errors for unsupported operand types)
+- Syntax errors
+- No main
+- Invalid declarations/assignments
 
 ### Optimisations:
 - Unreachable/dead code:
@@ -93,6 +96,6 @@ The shell script `build` will generate the ANTLR grammar using the `C.g4` file, 
 
 You can execute this shell script file by typing `./build` in the root directory of the project.
 
-The shell script `test` will parse all the C files in the directory `testfiles/`, output dotfiles and LLVM code for each file and generate the images of each tree.
+The shell script `test` will parse all the C files in the directory `testfiles/`, output dotfiles and code for each file and generate the images of each tree.
 
-You can execute this shell script by typing `./test` in the root directory of the project.
+You can execute this shell script by typing `./test [mips/llvm]` in the root directory of the project. 
