@@ -889,7 +889,7 @@ class ASTFunctionCallNode(ASTUnaryExpressionNode):
                 mips += f"{store_op} {reg}, {allocator.spilled_regs[reg]}\n"
 
             if isinstance(node, ASTConstantNode):
-                mips += f"{load_imm} {reg}, {node.value()}\n"
+                mips += f"{load_imm} {reg}, {node.value_register if float_type else node.value()}\n"
             elif isinstance(node, ASTIdentifierNode):
                 mips += f"{load_op} {reg}, {allocator.get_memory_address(node.identifier, node.scope)}\n"
             elif isinstance(node, ASTExpressionNode):
@@ -2468,7 +2468,7 @@ class ASTWhileCondNode(ASTWhileStmtNode):
         flag_jump_on = "f"
         if isinstance(self.children[0], ASTConstantNode):
             # Jump if condition is 0, else fall through
-            value = self.children[0].value
+            value = self.children[0].value()
             if value == 0:
                 return f"j {self.parent.finish_label}\n"
             return ""
@@ -2856,7 +2856,7 @@ class ASTReturnNode(ASTBaseNode):
                 break
             ancestor = ancestor.parent
 
-        move_op = "mfc1" if float_type else "move"
+        move_op = "mov.s" if float_type else "move"
         load_op = "lwc1" if float_type else "lw"
         value_register = self.children[0].value_register
         allocated = False
