@@ -62,7 +62,10 @@ class Allocator:
             return memory_location
         else:
             self.available_regs[t].insert(0, reg)
-            self.used_regs[t].remove(reg)
+            try:
+                self.used_regs[t].remove(reg)
+            except ValueError:
+                pass
             return None
 
     def get_memory_address(self, identifier, scope, idx=0):
