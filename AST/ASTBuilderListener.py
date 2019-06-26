@@ -51,15 +51,25 @@ class ASTBuilder(CListener):
     def enterCompilationUnit(self, ctx:CParser.CompilationUnitContext):
         includes_stdio = True if ctx.IncludeStdIO() else False
 
-        node = AST.ASTCompilationUnitNode(includes_stdio)
+        node = AST.ASTCompilationUnitNode(includes_stdio, ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
         self.current_node = node
 
+    def exitCompilationUnit(self, ctx:CParser.CompilationUnitContext):
+        # Check if program has main function
+        for child in self.current_node.children:
+            if isinstance(child, AST.ASTFunctionDefinitionNode):
+                if child.identifier().identifier == "main":
+                    return
+        # main not found
+        logging.error("No main function, aborting compilation.")
+        exit()
+
     def enterIdentifier(self, ctx:CParser.IdentifierContext):
         identifier = str(ctx.Identifier())
-        node = AST.ASTIdentifierNode(identifier)
+        node = AST.ASTIdentifierNode(identifier, ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -74,19 +84,19 @@ class ASTBuilder(CListener):
         else:
             constant = int(str(ctx.ConstantInt()))
             type_specifier = "int"
-        node = AST.ASTConstantNode(constant, type_specifier)
+        node = AST.ASTConstantNode(constant, type_specifier, ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
     def enterStringLiteral(self, ctx:CParser.StringLiteralContext):
-        node = AST.ASTStringLiteralNode(str(ctx.StringLiteral()))
+        node = AST.ASTStringLiteralNode(str(ctx.StringLiteral()), ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
     def enterArrayAccess(self, ctx:CParser.ArrayAccessContext):
-        node = AST.ASTArrayAccessNode()
+        node = AST.ASTArrayAccessNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -96,7 +106,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterFunctionCall(self, ctx:CParser.FunctionCallContext):
-        node = AST.ASTFunctionCallNode()
+        node = AST.ASTFunctionCallNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -106,7 +116,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterPostfixIncrement(self, ctx:CParser.PostfixIncrementContext):
-        node = AST.ASTPostfixIncrementNode()
+        node = AST.ASTPostfixIncrementNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -116,7 +126,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterPostfixDecrement(self, ctx:CParser.PostfixDecrementContext):
-        node = AST.ASTPostfixDecrementNode()
+        node = AST.ASTPostfixDecrementNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -126,7 +136,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterPrefixIncrement(self, ctx:CParser.PrefixIncrementContext):
-        node = AST.ASTPrefixIncrementNode()
+        node = AST.ASTPrefixIncrementNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -136,7 +146,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterPrefixDecrement(self, ctx:CParser.PrefixDecrementContext):
-        node = AST.ASTPrefixDecrementNode()
+        node = AST.ASTPrefixDecrementNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -146,7 +156,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterUnaryPlus(self, ctx:CParser.UnaryPlusContext):
-        node = AST.ASTUnaryPlusNode()
+        node = AST.ASTUnaryPlusNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -156,7 +166,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterUnaryMinus(self, ctx:CParser.UnaryMinusContext):
-        node = AST.ASTUnaryMinusNode()
+        node = AST.ASTUnaryMinusNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -166,7 +176,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLogicalNot(self, ctx:CParser.LogicalNotContext):
-        node = AST.ASTLogicalNotNode()
+        node = AST.ASTLogicalNotNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -176,7 +186,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterIndirection(self, ctx:CParser.IndirectionContext):
-        node = AST.ASTIndirectionNode()
+        node = AST.ASTIndirectionNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -186,7 +196,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterAddressOf(self, ctx:CParser.AddressOfContext):
-        node = AST.ASTAddressOfNode()
+        node = AST.ASTAddressOfNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -196,7 +206,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterCast(self, ctx:CParser.CastContext):
-        node = AST.ASTCastNode()
+        node = AST.ASTCastNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -206,7 +216,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterAssignment(self, ctx:CParser.AssignmentContext):
-        node = AST.ASTAssignmentNode()
+        node = AST.ASTAssignmentNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -216,7 +226,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterAssignmentMul(self, ctx:CParser.AssignmentMulContext):
-        node = AST.ASTAssignmentNode()
+        node = AST.ASTAssignmentNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -229,13 +239,15 @@ class ASTBuilder(CListener):
         operationNode = AST.ASTMultiplicationNode(c_idx = 1)
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
         self.current_node = self.current_node.parent
 
     def enterAssignmentDiv(self, ctx:CParser.AssignmentDivContext):
-        node = AST.ASTAssignmentNode()
+        node = AST.ASTAssignmentNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -245,16 +257,18 @@ class ASTBuilder(CListener):
         # Add operation with 'self'
         idNode = self.current_node.children[0]
         exprNode = self.current_node.children[1]
-        operationNode = AST.ASTDivisionNode(c_idx = 1)
+        operationNode = AST.ASTDivisionNode(c_idx = 1, ctx=ctx)
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
         self.current_node = self.current_node.parent
 
     def enterAssignmentAdd(self, ctx:CParser.AssignmentAddContext):
-        node = AST.ASTAssignmentNode()
+        node = AST.ASTAssignmentNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -264,16 +278,18 @@ class ASTBuilder(CListener):
         # Add operation with 'self'
         idNode = self.current_node.children[0]
         exprNode = self.current_node.children[1]
-        operationNode = AST.ASTAdditionNode()
+        operationNode = AST.ASTAdditionNode(ctx=ctx)
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
         self.current_node = self.current_node.parent
 
     def enterAssignmentSub(self, ctx:CParser.AssignmentSubContext):
-        node = AST.ASTAssignmentNode()
+        node = AST.ASTAssignmentNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -283,9 +299,11 @@ class ASTBuilder(CListener):
         # Add operation with 'self'
         idNode = self.current_node.children[0]
         exprNode = self.current_node.children[1]
-        operationNode = AST.ASTSubtractionNode()
+        operationNode = AST.ASTSubtractionNode(ctx=ctx)
         operationNode.parent = self.current_node
         operationNode.scope = self.current_node.scope
+        idNode.parent = operationNode
+        exprNode.parent = operationNode
         operationNode.children = [idNode, exprNode]
         self.current_node.children[1] = operationNode
 
@@ -322,7 +340,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterAddition(self, ctx:CParser.AdditionContext):
-        node = AST.ASTAdditionNode()
+        node = AST.ASTAdditionNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -332,7 +350,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterSubtraction(self, ctx:CParser.SubtractionContext):
-        node = AST.ASTSubtractionNode()
+        node = AST.ASTSubtractionNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -342,7 +360,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterSmallerThan(self, ctx:CParser.SmallerThanContext):
-        node = AST.ASTSmallerThanNode()
+        node = AST.ASTSmallerThanNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -352,7 +370,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLargerThan(self, ctx:CParser.LargerThanContext):
-        node = AST.ASTLargerThanNode()
+        node = AST.ASTLargerThanNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -362,7 +380,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterSmallerThanOrEqual(self, ctx:CParser.SmallerThanOrEqualContext):
-        node = AST.ASTSmallerThanOrEqualNode()
+        node = AST.ASTSmallerThanOrEqualNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -372,7 +390,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLargerThanOrEqual(self, ctx:CParser.LargerThanOrEqualContext):
-        node = AST.ASTLargerThanOrEqualNode()
+        node = AST.ASTLargerThanOrEqualNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -382,7 +400,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterEquals(self, ctx:CParser.EqualsContext):
-        node = AST.ASTEqualsNode()
+        node = AST.ASTEqualsNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -392,7 +410,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterNotEquals(self, ctx:CParser.NotEqualsContext):
-        node = AST.ASTNotEqualsNode()
+        node = AST.ASTNotEqualsNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -402,7 +420,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLogicalAnd(self, ctx:CParser.LogicalAndContext):
-        node = AST.ASTLogicalAndNode()
+        node = AST.ASTLogicalAndNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -412,7 +430,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterLogicalOr(self, ctx:CParser.LogicalOrContext):
-        node = AST.ASTLogicalOrNode()
+        node = AST.ASTLogicalOrNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -422,7 +440,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterConditional(self, ctx:CParser.ConditionalContext):
-        node = AST.ASTIfStmtNode()
+        node = AST.ASTIfStmtNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -432,7 +450,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterExpressionList(self, ctx:CParser.ExpressionListContext):
-        node = AST.ASTExprListNode("ExpressionList")
+        node = AST.ASTExprListNode("ExpressionList", ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -443,13 +461,13 @@ class ASTBuilder(CListener):
 
     def enterTypeSpecifier(self, ctx:CParser.TypeSpecifierContext):
         tspec = str(ctx.children[0])
-        node = AST.ASTTypeSpecifierNode(tspec)
+        node = AST.ASTTypeSpecifierNode(tspec, ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
 
     def enterIdentifierDeclarator(self, ctx:CParser.IdentifierDeclaratorContext):
-        node = AST.ASTIdentifierNode(str(ctx.Identifier()))
+        node = AST.ASTIdentifierNode(str(ctx.Identifier()), ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -465,7 +483,7 @@ class ASTBuilder(CListener):
         type_node.tspec += "[]"
         type_node.name += "[]"
 
-        node = AST.ASTArrayDeclarationNode()
+        node = AST.ASTArrayDeclarationNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -484,7 +502,7 @@ class ASTBuilder(CListener):
 
     def enterLabeledStatement(self, ctx:CParser.LabeledStatementContext):
         label = ctx.Identifier()
-        node = AST.ASTLabelStmtNode(label)
+        node = AST.ASTLabelStmtNode(label, ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -494,7 +512,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterSelectionStatement(self, ctx:CParser.SelectionStatementContext):
-        node = AST.ASTIfStmtNode()
+        node = AST.ASTIfStmtNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -505,17 +523,17 @@ class ASTBuilder(CListener):
         has_false_child = len(self.current_node.children) > 2
 
         # Create 'abstract' children
-        CondChild = AST.ASTIfConditionNode()
+        CondChild = AST.ASTIfConditionNode(ctx=ctx)
         CondChild.parent = self.current_node
         CondChild.scope = self.current_node.children[0].scope
 
-        IfTrueChild = AST.ASTIfTrueNode()
+        IfTrueChild = AST.ASTIfTrueNode(ctx=ctx)
         IfTrueChild.parent = self.current_node
         IfTrueChild.scope = self.current_node.children[1].scope
 
         IfFalseChild = None
         if has_false_child:
-            IfFalseChild = AST.ASTIfFalseNode()
+            IfFalseChild = AST.ASTIfFalseNode(ctx=ctx)
             IfFalseChild.parent = self.current_node
             IfFalseChild.scope = self.current_node.children[2].scope
 
@@ -534,7 +552,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterParameterTypeList(self, ctx:CParser.ParameterTypeListContext):
-        node = AST.ASTParameterTypeList()
+        node = AST.ASTParameterTypeList(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -546,26 +564,34 @@ class ASTBuilder(CListener):
     def enterIterationStatement(self, ctx:CParser.IterationStatementContext):
         node = None
         if ctx.For():
-            node = AST.ASTForStmtNode("For")
+            node = AST.ASTForStmtNode("For", ctx=ctx)
         elif ctx.While():
-            node = AST.ASTWhileStmtNode("While")
+            node = AST.ASTWhileStmtNode("While", ctx=ctx)
         node.parent = self.current_node
-        node.scope = self.current_node.scope
+        outer_for_scope = STT.STTNode()
+        outer_for_scope.parent = self.current_node.scope
+        outer_for_scope.depth = outer_for_scope.parent.depth + 1
+        node.scope = outer_for_scope
         self.current_node.children.append(node)
+        self.current_node.scope.children.append(outer_for_scope)
         self.current_node = node
 
     def exitIterationStatement(self, ctx:CParser.IterationStatementContext):
         # Create 'abstract' children
 
         if ctx.For():
-            InitChild = AST.ASTForInitNode()
-            CondChild = AST.ASTForCondNode()
-            UpdaterChild = AST.ASTForUpdaterNode()
-            BodyChild = AST.ASTForTrueNode()
+            InitChild = AST.ASTForInitNode(ctx=ctx)
+            CondChild = AST.ASTForCondNode(ctx=ctx)
+            UpdaterChild = AST.ASTForUpdaterNode(ctx=ctx)
+            BodyChild = AST.ASTForTrueNode(ctx=ctx)
             InitChild.children = [self.current_node.children[0]]
+            self.current_node.children[0].parent = InitChild
             CondChild.children = [self.current_node.children[1]]
+            self.current_node.children[1].parent = CondChild
             UpdaterChild.children = [self.current_node.children[2]]
+            self.current_node.children[2].parent = UpdaterChild
             BodyChild.children = [self.current_node.children[3]]
+            self.current_node.children[3].parent = BodyChild
             InitChild.parent = self.current_node
             CondChild.parent = self.current_node
             UpdaterChild.parent = self.current_node
@@ -576,10 +602,12 @@ class ASTBuilder(CListener):
             BodyChild.scope = self.current_node.children[3].scope
             self.current_node.children = [InitChild, CondChild, UpdaterChild, BodyChild]
         elif ctx.While():
-            CondChild = AST.ASTWhileCondNode()
-            BodyChild = AST.ASTWhileTrueNode()
+            CondChild = AST.ASTWhileCondNode(ctx=ctx)
+            BodyChild = AST.ASTWhileTrueNode(ctx=ctx)
             CondChild.children = [self.current_node.children[0]]
+            self.current_node.children[0].parent = CondChild
             BodyChild.children = [self.current_node.children[1]]
+            self.current_node.children[1].parent = BodyChild
             CondChild.parent = self.current_node
             BodyChild.parent = self.current_node
             CondChild.scope = self.current_node.children[0].scope
@@ -589,7 +617,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterGoto(self, ctx:CParser.GotoContext):
-        node = AST.ASTGotoNode()
+        node = AST.ASTGotoNode(ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -608,7 +636,7 @@ class ASTBuilder(CListener):
                 line_info = get_line_info(ctx)
                 logging.error(f"line {line_info[0]}:{line_info[1]} Keyword continue was used outside of loop body")
                 exit()
-        node = AST.ASTContinueNode(c_idx = len(self.current_node.children))
+        node = AST.ASTContinueNode(c_idx = len(self.current_node.children), ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -627,7 +655,7 @@ class ASTBuilder(CListener):
                 line_info = get_line_info(ctx)
                 logging.error(f"line {line_info[0]}:{line_info[1]} Keyword break was used outside of loop body")
                 exit()
-        node = AST.ASTBreakNode(c_idx = len(self.current_node.children))
+        node = AST.ASTBreakNode(c_idx = len(self.current_node.children), ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -637,7 +665,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterReturn(self, ctx:CParser.ReturnContext):
-        node = AST.ASTReturnNode(c_idx = len(self.current_node.children))
+        node = AST.ASTReturnNode(c_idx = len(self.current_node.children), ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -647,7 +675,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterCompoundStatement(self, ctx:CParser.CompoundStatementContext):
-        node = AST.ASTCompoundStmtNode()
+        node = AST.ASTCompoundStmtNode(ctx=ctx)
         node.parent = self.current_node
         if isinstance(ctx.parentCtx, CParser.FunctionDefinitionContext):
             node.scope = self.current_node.scope
@@ -665,7 +693,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterDeclaration(self, ctx:CParser.DeclarationContext):
-        node = AST.ASTDeclarationNode(c_idx=len(self.current_node.children))
+        node = AST.ASTDeclarationNode(c_idx=len(self.current_node.children), ctx=ctx)
         node.parent = self.current_node
         node.scope = self.current_node.scope
         self.current_node.children.append(node)
@@ -675,7 +703,7 @@ class ASTBuilder(CListener):
         self.current_node = self.current_node.parent
 
     def enterFunctionDefinition(self, ctx:CParser.FunctionDefinitionContext):
-        node = AST.ASTFunctionDefinitionNode()
+        node = AST.ASTFunctionDefinitionNode(allocator = AST.Allocator(), ctx=ctx)
         node.parent = self.current_node
         scope = STT.STTNode()
         scope.parent = self.current_node.scope
@@ -690,24 +718,25 @@ class ASTBuilder(CListener):
         identifier = self.current_node.identifier().identifier
 
         # Check for return
-        if type_spec != "void":
-            func_body_node = self.current_node.children[-1] 
-            has_return = False
-            for c in func_body_node.children:
-                if isinstance(c, AST.ASTReturnNode):
-                    has_return = True
-                    break
-            if not has_return:
+        func_body_node = self.current_node.children[-1]
+        has_return = False
+        for c in func_body_node.children:
+            if isinstance(c, AST.ASTReturnNode):
+                has_return = True
+                break
+        if not has_return:
+            if type_spec != "void":
                 line_info = get_line_info(ctx)
                 logging.warning(f"line {line_info[0]}:{line_info[1]} The function '{identifier}' doesn't return anything")
-                # Add implicit return node
-                implicit_return = AST.ASTReturnNode(len(func_body_node.children))
-                implicit_return.parent = func_body_node
-                implicit_return.scope = func_body_node.scope
-                return_cst = AST.ASTConstantNode(value=0, type_specifier=type_spec)
-                return_cst.parent = implicit_return
-                return_cst.scope = implicit_return.scope
-                implicit_return.children = [return_cst]
-                func_body_node.children.append(implicit_return)
+
+            # Add implicit return node
+            implicit_return = AST.ASTReturnNode(len(func_body_node.children), ctx=ctx)
+            implicit_return.parent = func_body_node
+            implicit_return.scope = func_body_node.scope
+            return_cst = AST.ASTConstantNode(value=0, type_specifier=type_spec, ctx=ctx)
+            return_cst.parent = implicit_return
+            return_cst.scope = implicit_return.scope
+            implicit_return.children = [return_cst]
+            func_body_node.children.append(implicit_return)
 
         self.current_node = self.current_node.parent

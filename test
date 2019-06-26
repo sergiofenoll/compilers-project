@@ -1,13 +1,59 @@
-#! /bin/sh
+#! /bin/bash
 
-for file in `find testfiles -type f -name '*.c'`
+usage="Usage:
+   - ./test llvm     // Generates LLVM IR
+   - ./test mips     // Generates MIPS assembly
+   - ./test clean    // Removes *.ll, *.dot, and .asm files"
+
+case $1 in
+    "llvm")
+        pyfile="c2llvm.py"
+        runner="lli"
+        extension="ll"
+    ;;
+    "mips")
+        pyfile="c2mips.py"
+        runner="java -jar mars-4.5.jar"
+        extension="asm"
+    ;;
+    "clean")
+        find . -regextype posix-extended -regex '.*\.(ll|asm|dot|png)' -delete
+        find testsuite/happy-day -regextype posix-extended -regex '.*\.txt' -delete
+        exit 0
+    ;;
+    *)
+        echo -e "$usage"
+        exit 1
+    ;;
+esac
+
+for file in `find testsuite -type f -name '*.c'`
 do
-    echo "Parsing $file"
-    python3 c2llvm.py $file
-    echo "Generated LLVM IR $file"
-done
-echo "Generating images from dotfiles"
-for file in `find testfiles -type f -name '*.dot'`
-do
-    dot -Tpng -o `echo $file | sed s/\.dot/\.png/` $file
+    echo "Compiling $file with our compiler"
+    python3 $pyfile $file
+
+    echo "Generating images from dotfiles for $file"
+    dot -Tpng -o `echo $file | sed 's/\.c/\.ast.png/'` `echo $file | sed 's/\.c/\.ast.dot/'`
+    dot -Tpng -o `echo $file | sed 's/\.c/\.stt.png/'` `echo $file | sed 's/\.c/\.stt.dot/'`
+
+    if [[ $file == *"happy-day"* ]]; then
+        echo "Compiling $file with GCC"
+        gcc $file -o `echo $file | sed 's/\.c$/\.out/'`
+
+        echo "Running GCC generated binary and storing its output in `echo $file | sed 's/\.c$/\.theirs\.txt/'`"
+        ./`echo $file | sed 's/\.c$/\.out/'` > `echo $file | sed 's/\.c$/\.theirs\.txt/'`
+        rm `echo $file | sed 's/\.c$/\.out/'`
+
+        echo "Running our generated code and storing its output in `echo $file | sed 's/\.c$/\.ours\.txt/'`"
+        if [[ $extension == "asm" ]]; then
+            $runner `echo $file | sed "s/\.c*/\.$extension/"` | tail -n +3 | head -n +1 > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+        else
+            $runner `echo $file | sed "s/\.c*/\.$extension/"` > `echo $file | sed 's/\.c$/\.ours\.txt/'`
+        fi
+
+        echo "Comparing output of GCC binary and ours"
+        diff -q `echo $file | sed 's/\.c$/\.theirs\.txt/'` `echo $file | sed 's/\.c$/\.ours\.txt/'`
+    fi
+
+    echo
 done

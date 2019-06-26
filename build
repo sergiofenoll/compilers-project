@@ -8,11 +8,13 @@ echo
 for file in `find example-C-code -type f -name '*.c'`
 do
     echo "Parsing $file"
-    python3 c2llvm.py $file
+    python3 c2mips.py $file
+    echo "Generated MIPS $file"
+    python3 c2llvm.py
     echo "Generated LLVM IR $file"
 done
 echo "Generating images from dotfiles"
-for file in `find testfiles -type f -name '*.dot'`
+for file in `find example-C-code -type f -name '*.dot'`
 do
     dot -Tpng -o `echo $file | sed s/\.dot/\.png/` $file
 done

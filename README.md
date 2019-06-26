@@ -3,8 +3,6 @@ _C(-ish) compiler made for a Compilers course by Jonathan Meyer & Sergio Fenoll.
 
 This document contains an overview of the project structure, as well as an overview of the implemented features and instruction on how to build the project itself.
 
-As of the time of writing, the 21st of April 2019, a number of the mandatory requirements haven't been fully implemented yet. During the week of the 22nd of April, we will continue work on the compiler and we expect to finish a large part of these requirements by the day of the evaluation.
-
 ## Project structure
 **`parser/`:**
 
@@ -43,13 +41,39 @@ This is our implementation of the ANTLR Listener that we utilise to create the A
   - Line comments `//`
   - Block comments `/* */`
     
+### MIPS:
+
+- Types: `char`, `float`, `int`
+- Reserved words: `if` `else`, `return`, `while`, `for`, `continue`, `break`
+- Functions:
+  - Function definitions
+  - Function calls
+- Local and global variables
+- Operations:
+  - Arithmetic operators: `+`, `-`, `*`, `/`, `%`
+  - Comparison operators: `>`, `<`, `!=`, `==`, `>=`, `<=`
+  - Logical operators: `&&`, `||`
+  - Assignment operators: `=`, `+=`, `-=`, `*=`, `/=`
+- Arrays:
+  - 1-dimensional arrays
+  - Array initialization
+  - Array access
+- Comments
+  - Line comments `//`
+  - Block comments `/* */`
+
 ### Error analysis:
 - Typechecking (warning/errors for unsupported operand types)
+- Syntax errors
+- No main
+- Invalid declarations/assignments
 
 ### Optimisations:
 - Unreachable/dead code:
   - No code after return
   - No code after break/continue
+- Constant folding and propagation
+- No declarations/assignments for unused variables
 
 ### Testfiles:
 
@@ -70,6 +94,6 @@ The shell script `build` will generate the ANTLR grammar using the `C.g4` file, 
 
 You can execute this shell script file by typing `./build` in the root directory of the project.
 
-The shell script `test` will parse all the C files in the directory `testfiles/`, output dotfiles and LLVM code for each file and generate the images of each tree.
+The shell script `test` will parse all the C files in the directory `testfiles/`, output dotfiles and code for each file and generate the images of each tree.
 
-You can execute this shell script by typing `./test` in the root directory of the project.
+You can execute this shell script by typing `./test [mips/llvm]` in the root directory of the project. 

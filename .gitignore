@@ -19,6 +19,8 @@ build.sh
 *.dot
 *.png
 *.ll
+*.asm
+*.txt
 
 README.html
 
