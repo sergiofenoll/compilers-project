@@ -175,8 +175,8 @@ def main(argv):
 
     populate_symbol_table(ast)
     type_checking(ast)
-    # optimise_ast(ast)
-    # prune_unused_variables(ast)
+    optimise_ast(ast)
+    prune_unused_variables(ast)
 
     with open(output_ast, "w") as astf:
         ast.generateDot(astf)

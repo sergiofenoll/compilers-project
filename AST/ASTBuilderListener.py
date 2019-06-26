@@ -629,7 +629,7 @@ class ASTBuilder(CListener):
     def enterContinue(self, ctx:CParser.ContinueContext):
         # Check if inside loop body
         loop_parent = self.current_node.parent
-        while not (isinstance(loop_parent, AST.ASTIfStmtNode) or isinstance(loop_parent, AST.ASTWhileStmtNode)):
+        while not (isinstance(loop_parent, AST.ASTForStmtNode) or isinstance(loop_parent, AST.ASTWhileStmtNode)):
             if loop_parent.parent:
                 loop_parent = loop_parent.parent
             else:
